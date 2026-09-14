@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     debug: bool = True
 
     # API
-    api_v1_prefix: str = "/api/v1"
+    api_prefix: str = "/api/v1"
     cors_origins: List[str] = ["http://localhost:5173"]
 
     # Database

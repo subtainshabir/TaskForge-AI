@@ -1,0 +1,104 @@
+:root {
+  /* Color: base palette */
+  --color-ink: #191b22;
+  --color-ink-soft: #4b4f5a;
+  --color-ink-faint: #8a8f9c;
+  --color-canvas: #f5f6f8;
+  --color-surface: #ffffff;
+  --color-surface-sunken: #eef0f3;
+  --color-border: #e3e5ea;
+  --color-border-strong: #cbced6;
+
+  /* Color: accent (brand / primary actions) */
+  --color-accent: #d9972e;
+  --color-accent-strong: #bd7e1e;
+  --color-accent-soft: #fbeeda;
+  --color-text-on-accent: var(--color-ink);
+
+  /* Color: AI-specific touchpoints only (chat, AI badges, suggestions) */
+  --color-ai: #4c5fd5;
+  --color-ai-strong: #3b4bc4;
+  --color-ai-soft: #eaedfc;
+  --color-text-on-ai: #ffffff;
+
+  /* Color: semantic states */
+  --color-success: #3f9668;
+  --color-success-soft: #e6f4ed;
+  --color-danger: #d64545;
+  --color-danger-soft: #fbeaea;
+  --color-warning: #d9972e;
+  --color-warning-soft: #fbeeda;
+
+  /* Color: text */
+  --color-text-primary: var(--color-ink);
+  --color-text-secondary: var(--color-ink-soft);
+  --color-text-tertiary: var(--color-ink-faint);
+  --color-text-inverse: #ffffff;
+
+  /* Typography */
+  --font-heading: "Manrope", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+  --text-md: 1.0625rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 1.875rem;
+  --text-3xl: 2.25rem;
+
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.65;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 999px;
+
+  /* Shadow: reserved for elevated surfaces (modals, dropdowns, popovers) */
+  --shadow-sm: 0 1px 2px rgba(25, 27, 34, 0.06);
+  --shadow-md: 0 4px 12px rgba(25, 27, 34, 0.08);
+  --shadow-lg: 0 16px 40px rgba(25, 27, 34, 0.16);
+
+  --border-width: 1px;
+
+  /* Motion */
+  --transition-fast: 120ms ease;
+  --transition-base: 180ms ease;
+
+  /* Focus */
+  --focus-ring: 0 0 0 3px var(--color-ai-soft);
+  --focus-ring-color: var(--color-ai);
+
+  /* Layout */
+  --sidebar-width: 264px;
+  --sidebar-width-collapsed: 76px;
+  --header-height: 64px;
+  --content-max-width: 1180px;
+
+  /* Z-index scale */
+  --z-header: 100;
+  --z-sidebar: 90;
+  --z-overlay: 900;
+  --z-modal: 1000;
+}

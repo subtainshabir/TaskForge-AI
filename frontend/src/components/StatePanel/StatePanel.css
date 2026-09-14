@@ -1,0 +1,39 @@
+.state-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-3);
+  padding: var(--space-12) var(--space-6);
+  max-width: 360px;
+  margin: 0 auto;
+}
+
+.state-panel__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-full);
+  color: var(--color-text-tertiary);
+  background: var(--color-surface-sunken);
+}
+
+.state-panel--error .state-panel__icon {
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
+}
+
+.state-panel__title {
+  font-family: var(--font-heading);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  margin: 0;
+}
+
+.state-panel__description {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  margin: 0;
+}

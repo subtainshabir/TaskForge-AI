@@ -1,0 +1,22 @@
+.app-shell {
+  min-height: 100%;
+}
+
+.app-shell__main {
+  margin-left: var(--sidebar-width);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 1023px) and (min-width: 768px) {
+  .app-shell__main {
+    margin-left: var(--sidebar-width-collapsed);
+  }
+}
+
+@media (max-width: 767px) {
+  .app-shell__main {
+    margin-left: 0;
+  }
+}

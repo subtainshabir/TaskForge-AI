@@ -6,7 +6,7 @@ from app.core.config import get_settings
 
 settings = get_settings()
 
-app = FastAPI(title=settings.app_name, debug=settings.debug)
+app = FastAPI(title=settings.app_name, version="0.1.0", debug=settings.debug)
 
 app.add_middleware(
     CORSMiddleware,
@@ -16,4 +16,4 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(api_router, prefix=settings.api_v1_prefix)
+app.include_router(api_router, prefix=settings.api_prefix)
