@@ -1,0 +1,69 @@
+# Environment
+
+.env
+.env.*
+!.env.example
+
+# Python
+
+**pycache**/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+env/
+
+# Node
+
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Vite
+
+dist/
+.vite/
+coverage/
+
+# Database
+
+*.sqlite
+*.sqlite3
+*.db
+
+# IDE
+
+.vscode/
+.idea/
+*.iml
+
+# OS
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+
+*.log
+
+# Temporary files
+
+*.tmp
+*.temp
+*.swp
+*.swo
+
+# Local storage
+
+uploads/
+storage/
+generated/
