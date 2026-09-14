@@ -14,7 +14,11 @@ class Phase(Base, TimestampMixin):
     __tablename__ = "phases"
     __table_args__ = (
         CheckConstraint("progress >= 0 AND progress <= 100", name="ck_phases_progress_range"),
+        CheckConstraint("order_index >= 0", name="ck_phases_order_index_nonneg"),
+        CheckConstraint("estimated_minutes >= 0", name="ck_phases_estimated_minutes_nonneg"),
+        CheckConstraint("actual_minutes >= 0", name="ck_phases_actual_minutes_nonneg"),
         Index("ix_phases_task_order", "task_id", "order_index"),
+        Index("ix_phases_task_status", "task_id", "status"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -25,7 +29,7 @@ class Phase(Base, TimestampMixin):
     description: Mapped[Optional[str]] = mapped_column(Text)
     order_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     status: Mapped[WorkStatus] = mapped_column(
-        SQLEnum(WorkStatus, name="work_status"),
+        SQLEnum(WorkStatus, name="work_status", values_callable=lambda e: [m.value for m in e]),
         nullable=False,
         default=WorkStatus.TODO,
         index=True,
@@ -39,4 +43,5 @@ class Phase(Base, TimestampMixin):
         back_populates="phase",
         cascade="all, delete-orphan",
         order_by="Subtask.order_index",
+        lazy="selectin",
     )

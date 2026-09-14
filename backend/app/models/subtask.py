@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime
+from sqlalchemy import CheckConstraint, DateTime
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy import ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -13,7 +13,12 @@ from app.models.mixins import TimestampMixin
 
 class Subtask(Base, TimestampMixin):
     __tablename__ = "subtasks"
-    __table_args__ = (Index("ix_subtasks_phase_order", "phase_id", "order_index"),)
+    __table_args__ = (
+        Index("ix_subtasks_phase_order", "phase_id", "order_index"),
+        CheckConstraint("order_index >= 0", name="ck_subtasks_order_index_nonneg"),
+        CheckConstraint("estimated_minutes >= 0", name="ck_subtasks_estimated_minutes_nonneg"),
+        CheckConstraint("actual_minutes >= 0", name="ck_subtasks_actual_minutes_nonneg"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     phase_id: Mapped[int] = mapped_column(
@@ -22,7 +27,7 @@ class Subtask(Base, TimestampMixin):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
     status: Mapped[WorkStatus] = mapped_column(
-        SQLEnum(WorkStatus, name="work_status"),
+        SQLEnum(WorkStatus, name="work_status", values_callable=lambda e: [m.value for m in e]),
         nullable=False,
         default=WorkStatus.TODO,
         index=True,

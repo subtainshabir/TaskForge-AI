@@ -29,4 +29,5 @@ class Conversation(Base, TimestampMixin):
         back_populates="conversation",
         cascade="all, delete-orphan",
         order_by="Message.created_at",
+        lazy="selectin",
     )

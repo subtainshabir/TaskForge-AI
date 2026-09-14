@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from sqlalchemy import CheckConstraint, DateTime
 from sqlalchemy import Enum as SQLEnum
-from sqlalchemy import ForeignKey, Integer, String, Text
+from sqlalchemy import ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -15,6 +15,10 @@ class Task(Base, TimestampMixin):
     __tablename__ = "tasks"
     __table_args__ = (
         CheckConstraint("progress >= 0 AND progress <= 100", name="ck_tasks_progress_range"),
+        CheckConstraint("estimated_minutes >= 0", name="ck_tasks_estimated_minutes_nonneg"),
+        CheckConstraint("actual_minutes >= 0", name="ck_tasks_actual_minutes_nonneg"),
+        Index("ix_tasks_user_status", "user_id", "status"),
+        Index("ix_tasks_project_status", "project_id", "status"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -27,13 +31,13 @@ class Task(Base, TimestampMixin):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
     status: Mapped[WorkStatus] = mapped_column(
-        SQLEnum(WorkStatus, name="work_status"),
+        SQLEnum(WorkStatus, name="work_status", values_callable=lambda e: [m.value for m in e]),
         nullable=False,
         default=WorkStatus.TODO,
         index=True,
     )
     priority: Mapped[TaskPriority] = mapped_column(
-        SQLEnum(TaskPriority, name="task_priority"),
+        SQLEnum(TaskPriority, name="task_priority", values_callable=lambda e: [m.value for m in e]),
         nullable=False,
         default=TaskPriority.MEDIUM,
         index=True,
@@ -49,6 +53,7 @@ class Task(Base, TimestampMixin):
         back_populates="task",
         cascade="all, delete-orphan",
         order_by="Phase.order_index",
+        lazy="selectin",
     )
     notes: Mapped[List["Note"]] = relationship(back_populates="task")
     conversations: Mapped[List["Conversation"]] = relationship(back_populates="task")
