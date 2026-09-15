@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from sqlalchemy import Boolean, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -24,4 +24,7 @@ class User(Base, TimestampMixin):
     )
     conversations: Mapped[List["Conversation"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
+    )
+    settings: Mapped[Optional["UserSettings"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan", uselist=False
     )

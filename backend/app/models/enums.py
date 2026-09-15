@@ -28,3 +28,9 @@ class MessageRole(str, enum.Enum):
     ASSISTANT = "assistant"
     SYSTEM = "system"
     TOOL = "tool"
+
+
+class ThemePreference(str, enum.Enum):
+    LIGHT = "light"
+    DARK = "dark"
+    SYSTEM = "system"

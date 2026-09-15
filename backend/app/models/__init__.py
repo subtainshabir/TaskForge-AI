@@ -1,4 +1,5 @@
 from app.models.user import User
+from app.models.user_settings import UserSettings
 from app.models.project import Project
 from app.models.task import Task
 from app.models.phase import Phase
@@ -9,6 +10,7 @@ from app.models.message import Message
 
 __all__ = [
     "User",
+    "UserSettings",
     "Project",
     "Task",
     "Phase",
