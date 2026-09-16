@@ -1,0 +1,8 @@
+.field__control--textarea {
+  height: auto;
+  min-height: 96px;
+  padding: var(--space-3);
+  resize: vertical;
+  font-family: inherit;
+  line-height: var(--leading-normal);
+}

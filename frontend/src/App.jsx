@@ -6,6 +6,8 @@ import Dashboard from "./pages/Dashboard/Dashboard.jsx";
 import LoginPage from "./pages/Login/LoginPage.jsx";
 import RegisterPage from "./pages/Register/RegisterPage.jsx";
 import SettingsPage from "./pages/Settings/SettingsPage.jsx";
+import ProjectsPage from "./pages/Projects/ProjectsPage.jsx";
+import ProjectDetailsPage from "./pages/ProjectDetails/ProjectDetailsPage.jsx";
 import ProtectedRoute from "./routes/ProtectedRoute.jsx";
 import PublicOnlyRoute from "./routes/PublicOnlyRoute.jsx";
 
@@ -23,6 +25,8 @@ function App() {
             <Route element={<ProtectedRoute />}>
               <Route element={<AppShell />}>
                 <Route index element={<Dashboard />} />
+                <Route path="/projects" element={<ProjectsPage />} />
+                <Route path="/projects/:projectId" element={<ProjectDetailsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
               </Route>
             </Route>
