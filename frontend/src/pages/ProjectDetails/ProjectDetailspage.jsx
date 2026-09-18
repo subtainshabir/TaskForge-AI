@@ -19,6 +19,7 @@ import Spinner from "../../components/Spinner/Spinner.jsx";
 import { ErrorState } from "../../components/StatePanel/StatePanel.jsx";
 import ProjectForm from "../../components/projects/ProjectForm/ProjectForm.jsx";
 import DeleteProjectDialog from "../../components/projects/DeleteProjectDialog/DeleteProjectDialog.jsx";
+import ProjectTasksPanel from "../../components/tasks/ProjectTasksPanel/ProjectTasksPanel.jsx";
 import { projectService } from "../../services/projectService.js";
 import { apiErrorMessage } from "../../utils/apiErrorMessage.js";
 import { formatAbsoluteDate } from "../../utils/date.js";
@@ -27,7 +28,7 @@ import "./ProjectDetailsPage.css";
 
 const SECTIONS = [
   { id: "overview", label: "Overview", icon: LayoutList, enabled: true },
-  { id: "tasks", label: "Tasks", icon: CheckSquare, enabled: false },
+  { id: "tasks", label: "Tasks", icon: CheckSquare, enabled: true },
   { id: "notes", label: "Notes", icon: StickyNote, enabled: false },
   { id: "ai", label: "AI", icon: Sparkles, enabled: false },
   { id: "activity", label: "Activity", icon: Activity, enabled: false },
@@ -37,6 +38,7 @@ function ProjectDetailsPage() {
   const { projectId } = useParams();
   const navigate = useNavigate();
 
+  const [activeSection, setActiveSection] = useState("overview");
   const [project, setProject] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -156,9 +158,10 @@ function ProjectDetailsPage() {
             type="button"
             role="tab"
             className="project-details__nav-item"
-            aria-selected={id === "overview"}
+            aria-selected={activeSection === id}
             disabled={!enabled}
             title={enabled ? undefined : "Coming soon"}
+            onClick={() => enabled && setActiveSection(id)}
           >
             <Icon size={16} aria-hidden="true" />
             {sectionLabel}
@@ -166,30 +169,34 @@ function ProjectDetailsPage() {
         ))}
       </div>
 
-      <Card>
-        <h2 className="project-details__section-title">Overview</h2>
-        <p className="project-details__description">
-          {project.description || "No description provided."}
-        </p>
+      {activeSection === "tasks" ? (
+        <ProjectTasksPanel projectId={project.id} />
+      ) : (
+        <Card>
+          <h2 className="project-details__section-title">Overview</h2>
+          <p className="project-details__description">
+            {project.description || "No description provided."}
+          </p>
 
-        <div className="project-details__meta">
-          <div className="project-details__meta-row">
-            <span className="project-details__meta-label">Status</span>
-            <Badge variant={badgeVariant}>
-              <StatusIcon size={12} aria-hidden="true" />
-              {label}
-            </Badge>
+          <div className="project-details__meta">
+            <div className="project-details__meta-row">
+              <span className="project-details__meta-label">Status</span>
+              <Badge variant={badgeVariant}>
+                <StatusIcon size={12} aria-hidden="true" />
+                {label}
+              </Badge>
+            </div>
+            <div className="project-details__meta-row">
+              <span className="project-details__meta-label">Created</span>
+              <span className="project-details__meta-value">{formatAbsoluteDate(project.created_at)}</span>
+            </div>
+            <div className="project-details__meta-row">
+              <span className="project-details__meta-label">Last updated</span>
+              <span className="project-details__meta-value">{formatAbsoluteDate(project.updated_at)}</span>
+            </div>
           </div>
-          <div className="project-details__meta-row">
-            <span className="project-details__meta-label">Created</span>
-            <span className="project-details__meta-value">{formatAbsoluteDate(project.created_at)}</span>
-          </div>
-          <div className="project-details__meta-row">
-            <span className="project-details__meta-label">Last updated</span>
-            <span className="project-details__meta-value">{formatAbsoluteDate(project.updated_at)}</span>
-          </div>
-        </div>
-      </Card>
+        </Card>
+      )}
 
       <Modal
         open={isEditOpen}

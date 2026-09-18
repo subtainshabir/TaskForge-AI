@@ -8,6 +8,7 @@ import RegisterPage from "./pages/Register/RegisterPage.jsx";
 import SettingsPage from "./pages/Settings/SettingsPage.jsx";
 import ProjectsPage from "./pages/Projects/ProjectsPage.jsx";
 import ProjectDetailsPage from "./pages/ProjectDetails/ProjectDetailsPage.jsx";
+import TaskDetailsPage from "./pages/TaskDetails/TaskDetailsPage.jsx";
 import ProtectedRoute from "./routes/ProtectedRoute.jsx";
 import PublicOnlyRoute from "./routes/PublicOnlyRoute.jsx";
 
@@ -27,6 +28,7 @@ function App() {
                 <Route index element={<Dashboard />} />
                 <Route path="/projects" element={<ProjectsPage />} />
                 <Route path="/projects/:projectId" element={<ProjectDetailsPage />} />
+                <Route path="/projects/:projectId/tasks/:taskId" element={<TaskDetailsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
               </Route>
             </Route>

@@ -1,0 +1,34 @@
+.task-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.task-item-skeleton {
+  height: 92px;
+  border-radius: var(--radius-md);
+  border: var(--border-width) solid var(--color-border);
+  background: linear-gradient(
+    100deg,
+    var(--color-surface) 30%,
+    var(--color-surface-sunken) 50%,
+    var(--color-surface) 70%
+  );
+  background-size: 200% 100%;
+  animation: task-skeleton-shimmer 1.4s ease infinite;
+}
+
+@keyframes task-skeleton-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .task-item-skeleton {
+    animation: none;
+  }
+}
