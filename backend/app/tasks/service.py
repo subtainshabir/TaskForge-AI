@@ -43,15 +43,16 @@ def create_task(db: Session, project: Project, user_id: int, payload: TaskCreate
 
 
 def update_task(db: Session, task: Task, payload: TaskUpdate) -> Task:
+    provided = payload.model_fields_set
     if payload.title is not None:
         task.title = payload.title
-    if payload.description is not None:
+    if "description" in provided:
         task.description = payload.description
     if payload.status is not None:
         task.status = WorkStatus(payload.status)
     if payload.priority is not None:
         task.priority = TaskPriority(payload.priority)
-    if payload.deadline is not None:
+    if "deadline" in provided:
         task.deadline = payload.deadline
     db.commit()
     db.refresh(task)

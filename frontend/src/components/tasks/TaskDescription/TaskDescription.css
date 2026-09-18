@@ -1,0 +1,11 @@
+.task-description {
+  color: var(--color-text-primary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: var(--leading-relaxed);
+  margin: 0 0 var(--space-6);
+}
+.task-description--empty {
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}

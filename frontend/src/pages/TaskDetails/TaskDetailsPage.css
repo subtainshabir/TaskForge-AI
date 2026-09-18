@@ -84,3 +84,33 @@
 .task-details__meta-value--overdue {
   color: var(--color-danger);
 }
+.task-details__skeleton-line {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    100deg,
+    var(--color-surface) 30%,
+    var(--color-surface-sunken) 50%,
+    var(--color-surface) 70%
+  );
+  background-size: 200% 100%;
+  animation: task-details-shimmer 1.4s ease infinite;
+}
+
+@keyframes task-details-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .task-details__skeleton-line {
+    animation: none;
+  }
+}
+
+.task-details__section-title {
+  margin: 0 0 var(--space-4);
+}

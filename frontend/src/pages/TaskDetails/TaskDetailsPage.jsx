@@ -1,45 +1,44 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import {
-  ArrowLeft,
-  LayoutList,
-  GitBranch,
-  TrendingUp,
-  StickyNote,
-  Sparkles,
-  Pencil,
-  Trash2,
-  CalendarClock,
-} from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
 import PageContainer from "../../components/PageContainer/PageContainer.jsx";
 import Card from "../../components/Card/Card.jsx";
-import Badge from "../../components/Badge/Badge.jsx";
 import Button from "../../components/Button/Button.jsx";
 import Modal from "../../components/Modal/Modal.jsx";
-import Spinner from "../../components/Spinner/Spinner.jsx";
 import { ErrorState } from "../../components/StatePanel/StatePanel.jsx";
+import TaskHeader from "../../components/tasks/TaskHeader/TaskHeader.jsx";
+import TaskStatusControl from "../../components/tasks/TaskStatusControl/TaskStatusControl.jsx";
+import TaskPriorityControl from "../../components/tasks/TaskPriorityControl/TaskPriorityControl.jsx";
+import TaskDueDateControl from "../../components/tasks/TaskDueDateControl/TaskDueDateControl.jsx";
+import TaskDescription from "../../components/tasks/TaskDescription/TaskDescription.jsx";
+import TaskMetadata from "../../components/tasks/TaskMetadata/TaskMetadata.jsx";
 import TaskForm from "../../components/tasks/TaskForm/TaskForm.jsx";
 import DeleteTaskDialog from "../../components/tasks/DeleteTaskDialog/DeleteTaskDialog.jsx";
 import { taskService } from "../../services/taskService.js";
+import { projectService } from "../../services/projectService.js";
 import { apiErrorMessage } from "../../utils/apiErrorMessage.js";
-import { formatAbsoluteDate, formatDueDate, isOverdue } from "../../utils/date.js";
-import { TASK_STATUS_META } from "../../utils/taskStatus.js";
-import { TASK_PRIORITY_META } from "../../utils/taskPriority.js";
 import "./TaskDetailsPage.css";
 
-const SECTIONS = [
-  { id: "overview", label: "Overview", icon: LayoutList, enabled: true },
-  { id: "phases", label: "AI Phases", icon: GitBranch, enabled: false },
-  { id: "progress", label: "Progress", icon: TrendingUp, enabled: false },
-  { id: "notes", label: "Notes", icon: StickyNote, enabled: false },
-  { id: "chat", label: "AI Chat", icon: Sparkles, enabled: false },
-];
+function TaskDetailsSkeleton() {
+  return (
+    <PageContainer>
+      <div className="task-details__skeleton-line" style={{ width: 220, height: 16, marginBottom: 16 }} />
+      <div className="task-details__skeleton-line" style={{ width: 320, height: 32, marginBottom: 24 }} />
+      <div style={{ display: "flex", gap: 12, marginBottom: 24 }}>
+        <div className="task-details__skeleton-line" style={{ width: 90, height: 28 }} />
+        <div className="task-details__skeleton-line" style={{ width: 90, height: 28 }} />
+        <div className="task-details__skeleton-line" style={{ width: 120, height: 28 }} />
+      </div>
+      <div className="task-details__skeleton-line" style={{ width: "100%", height: 160 }} />
+    </PageContainer>
+  );
+}
 
 function TaskDetailsPage() {
   const { projectId, taskId } = useParams();
   const navigate = useNavigate();
 
   const [task, setTask] = useState(null);
+  const [project, setProject] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -50,22 +49,26 @@ function TaskDetailsPage() {
   const [formError, setFormError] = useState("");
   const [deleteError, setDeleteError] = useState("");
 
-  const loadTask = useCallback(async () => {
+  const loadData = useCallback(async () => {
     setIsLoading(true);
     setError("");
     try {
-      const data = await taskService.get(taskId);
-      setTask(data);
+      const [taskData, projectData] = await Promise.all([
+        taskService.get(taskId),
+        projectService.get(projectId),
+      ]);
+      setTask(taskData);
+      setProject(projectData);
     } catch (err) {
       setError(apiErrorMessage(err, "This task doesn't exist or you don't have access to it."));
     } finally {
       setIsLoading(false);
     }
-  }, [taskId]);
+  }, [taskId, projectId]);
 
   useEffect(() => {
-    loadTask();
-  }, [loadTask]);
+    loadData();
+  }, [loadData]);
 
   async function handleUpdate(payload) {
     setIsSaving(true);
@@ -95,13 +98,7 @@ function TaskDetailsPage() {
   }
 
   if (isLoading) {
-    return (
-      <PageContainer>
-        <div style={{ display: "flex", justifyContent: "center", padding: "var(--space-16) 0" }}>
-          <Spinner size="lg" label="Loading task" />
-        </div>
-      </PageContainer>
-    );
+    return <TaskDetailsSkeleton />;
   }
 
   if (error || !task) {
@@ -122,98 +119,26 @@ function TaskDetailsPage() {
     );
   }
 
-  const { label: statusLabel, icon: StatusIcon, badgeVariant: statusVariant } = TASK_STATUS_META[task.status];
-  const { label: priorityLabel, icon: PriorityIcon, badgeVariant: priorityVariant } = TASK_PRIORITY_META[task.priority];
-  const dueLabel = formatDueDate(task.deadline);
-  const overdue = isOverdue(task.deadline, task.status);
-
   return (
-    <PageContainer
-      title={task.title}
-      subtitle={
-        <Badge variant={statusVariant}>
-          <StatusIcon size={12} aria-hidden="true" />
-          {statusLabel}
-        </Badge>
-      }
-      actions={
-        <>
-          <Button variant="secondary" onClick={() => setIsEditOpen(true)}>
-            <Pencil size={16} aria-hidden="true" />
-            Edit
-          </Button>
-          <Button variant="danger" onClick={() => setIsDeleteOpen(true)}>
-            <Trash2 size={16} aria-hidden="true" />
-            Delete
-          </Button>
-        </>
-      }
-    >
-      <Link to={`/projects/${projectId}`} className="task-details__back">
-        <ArrowLeft size={14} aria-hidden="true" />
-        Back to Project
-      </Link>
+    <PageContainer>
+      <TaskHeader
+        projectId={projectId}
+        projectName={project?.name}
+        taskTitle={task.title}
+        onEdit={() => setIsEditOpen(true)}
+        onDelete={() => setIsDeleteOpen(true)}
+      />
 
-      <div className="task-details__nav" role="tablist" aria-label="Task sections">
-        {SECTIONS.map(({ id, label: sectionLabel, icon: Icon, enabled }) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            className="task-details__nav-item"
-            aria-selected={id === "overview"}
-            disabled={!enabled}
-            title={enabled ? undefined : "Coming soon"}
-          >
-            <Icon size={16} aria-hidden="true" />
-            {sectionLabel}
-          </button>
-        ))}
+      <div className="task-controls">
+        <TaskStatusControl task={task} onUpdated={setTask} />
+        <TaskPriorityControl task={task} onUpdated={setTask} />
+        <TaskDueDateControl task={task} onUpdated={setTask} />
       </div>
 
       <Card>
         <h2 className="task-details__section-title">Overview</h2>
-        <p className="task-details__description">{task.description || "No description provided."}</p>
-
-        <div className="task-details__meta">
-          <div className="task-details__meta-row">
-            <span className="task-details__meta-label">Status</span>
-            <Badge variant={statusVariant}>
-              <StatusIcon size={12} aria-hidden="true" />
-              {statusLabel}
-            </Badge>
-          </div>
-          <div className="task-details__meta-row">
-            <span className="task-details__meta-label">Priority</span>
-            <Badge variant={priorityVariant}>
-              <PriorityIcon size={12} aria-hidden="true" />
-              {priorityLabel}
-            </Badge>
-          </div>
-          <div className="task-details__meta-row">
-            <span className="task-details__meta-label">Due date</span>
-            <span
-              className={`task-details__meta-value ${overdue ? "task-details__meta-value--overdue" : ""}`}
-            >
-              {dueLabel ? (
-                <>
-                  <CalendarClock size={13} aria-hidden="true" style={{ marginRight: 4, verticalAlign: "-2px" }} />
-                  {overdue ? `Overdue · ${dueLabel}` : dueLabel}
-                </>
-              ) : (
-                "No due date"
-              )}
-            </span>
-          </div>
-          <div className="task-details__meta-row">
-            <span className="task-details__meta-label">Created</span>
-            <span className="task-details__meta-value">{formatAbsoluteDate(task.created_at)}</span>
-          </div>
-          <div className="task-details__meta-row">
-            <span className="task-details__meta-label">Last updated</span>
-            <span className="task-details__meta-value">{formatAbsoluteDate(task.updated_at)}</span>
-          </div>
-        </div>
+        <TaskDescription description={task.description} />
+        <TaskMetadata task={task} />
       </Card>
 
       <Modal
