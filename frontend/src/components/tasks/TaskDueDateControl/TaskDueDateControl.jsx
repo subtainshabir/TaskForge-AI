@@ -2,7 +2,7 @@ import { useState } from "react";
 import { CalendarClock } from "lucide-react";
 import { taskService } from "../../../services/taskService.js";
 import { apiErrorMessage } from "../../../utils/apiErrorMessage.js";
-import { formatDueDate, isOverdue, toDateInputValue } from "../../../utils/date.js";
+import { getDueDateInfo, toDateInputValue } from "../../../utils/date.js";
 import "../TaskStatusControl/TaskControls.css";
 
 function TaskDueDateControl({ task, onUpdated }) {
@@ -11,8 +11,7 @@ function TaskDueDateControl({ task, onUpdated }) {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const dueLabel = formatDueDate(task.deadline);
-  const overdue = isOverdue(task.deadline, task.status);
+  const dueInfo = getDueDateInfo(task.deadline, task.status);
 
   async function save(nextDeadline) {
     setIsSaving(true);
@@ -80,14 +79,14 @@ function TaskDueDateControl({ task, onUpdated }) {
       <span className="task-control__label">Due date</span>
       <button
         type="button"
-        className={`task-control__due-button ${overdue ? "task-control__due-button--overdue" : ""}`}
+        className={`task-control__due-button ${dueInfo.urgency === "overdue" ? "task-control__due-button--overdue" : ""}`}
         onClick={() => {
           setDraft(toDateInputValue(task.deadline));
           setIsEditing(true);
         }}
       >
         <CalendarClock size={12} aria-hidden="true" />
-        {dueLabel ? (overdue ? `Overdue · ${dueLabel}` : dueLabel) : "Set due date"}
+        {task.deadline ? dueInfo.label : "Set due date"}
       </button>
       {error && <span className="task-control__error">{error}</span>}
     </div>

@@ -45,3 +45,32 @@ export function toDateInputValue(value) {
   const offset = date.getTimezoneOffset();
   return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 10);
 }
+
+export const DUE_URGENCY_META = {
+  overdue: { badgeVariant: "danger" },
+  today: { badgeVariant: "accent" },
+  tomorrow: { badgeVariant: "ai" },
+  upcoming: { badgeVariant: "neutral" },
+  done: { badgeVariant: "neutral" },
+  none: { badgeVariant: "neutral" },
+};
+
+export function getDueDateInfo(value, status) {
+  if (!value) return { label: "No due date", urgency: "none" };
+
+  const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diffDays = Math.round((startOfDay(new Date(value)) - startOfDay(new Date())) / 86400000);
+  const isDone = status === "completed" || status === "cancelled";
+
+  if (isDone) {
+    return { label: `Due ${formatDueDate(value)}`, urgency: "done" };
+  }
+  if (diffDays < 0) {
+    const overdueDays = Math.abs(diffDays);
+    const label = overdueDays === 1 ? "Due yesterday" : `${overdueDays} days overdue`;
+    return { label, urgency: "overdue" };
+  }
+  if (diffDays === 0) return { label: "Due today", urgency: "today" };
+  if (diffDays === 1) return { label: "Due tomorrow", urgency: "tomorrow" };
+  return { label: `Due ${formatDueDate(value)}`, urgency: "upcoming" };
+}

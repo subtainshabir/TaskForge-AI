@@ -5,7 +5,7 @@ import Button from "../../Button/Button.jsx";
 import Modal from "../../Modal/Modal.jsx";
 import { EmptyState, ErrorState } from "../../StatePanel/StatePanel.jsx";
 import TaskFilters from "../TaskFilters/TaskFilters.jsx";
-import TaskList from "../TaskList/TaskList.jsx";
+import TaskList from "../TaskList/Tasklist.jsx";
 import TaskForm from "../TaskForm/TaskForm.jsx";
 import DeleteTaskDialog from "../DeleteTaskDialog/DeleteTaskDialog.jsx";
 import { useTasks } from "../../../hooks/useTasks.js";
@@ -28,6 +28,7 @@ function ProjectTasksPanel({ projectId }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [formError, setFormError] = useState("");
   const [deleteError, setDeleteError] = useState("");
+  const [quickUpdateError, setQuickUpdateError] = useState("");
 
   const filteredTasks = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -76,11 +77,40 @@ function ProjectTasksPanel({ projectId }) {
   async function handleStatusChange(task, nextStatus) {
     const previous = task.status;
     replaceTask({ ...task, status: nextStatus });
+    setQuickUpdateError("");
     try {
       const updated = await taskService.update(task.id, { status: nextStatus });
       replaceTask(updated);
     } catch (err) {
       replaceTask({ ...task, status: previous });
+      setQuickUpdateError(apiErrorMessage(err, "Unable to update task status. Please try again."));
+    }
+  }
+
+  async function handlePriorityChange(task, nextPriority) {
+    const previous = task.priority;
+    replaceTask({ ...task, priority: nextPriority });
+    setQuickUpdateError("");
+    try {
+      const updated = await taskService.update(task.id, { priority: nextPriority });
+      replaceTask(updated);
+    } catch (err) {
+      replaceTask({ ...task, priority: previous });
+      setQuickUpdateError(apiErrorMessage(err, "Unable to update task priority. Please try again."));
+    }
+  }
+
+  async function handleToggleComplete(task) {
+    const previous = task.status;
+    const nextStatus = task.status === "completed" ? "todo" : "completed";
+    replaceTask({ ...task, status: nextStatus });
+    setQuickUpdateError("");
+    try {
+      const updated = await taskService.update(task.id, { status: nextStatus });
+      replaceTask(updated);
+    } catch (err) {
+      replaceTask({ ...task, status: previous });
+      setQuickUpdateError(apiErrorMessage(err, "Unable to update task status. Please try again."));
     }
   }
 
@@ -116,6 +146,22 @@ function ProjectTasksPanel({ projectId }) {
           search={search}
           onSearchChange={setSearch}
         />
+      )}
+
+      {quickUpdateError && (
+        <div
+          role="alert"
+          style={{
+            marginBottom: "var(--space-4)",
+            padding: "var(--space-3)",
+            borderRadius: "var(--radius-md)",
+            background: "var(--color-danger-soft)",
+            color: "var(--color-danger)",
+            fontSize: "var(--text-sm)",
+          }}
+        >
+          {quickUpdateError}
+        </div>
       )}
 
       {error && !isLoading && (
@@ -179,6 +225,8 @@ function ProjectTasksPanel({ projectId }) {
           isLoading={false}
           projectId={projectId}
           onStatusChange={handleStatusChange}
+          onPriorityChange={handlePriorityChange}
+          onToggleComplete={handleToggleComplete}
           onEdit={setEditingTask}
           onDelete={setDeletingTask}
         />

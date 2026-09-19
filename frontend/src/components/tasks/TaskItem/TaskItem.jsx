@@ -1,16 +1,15 @@
 import { useNavigate } from "react-router-dom";
 import { CalendarClock, Pencil, Trash2 } from "lucide-react";
-import Badge from "../../Badge/Badge.jsx";
 import StatusSelect from "../StatusSelect/StatusSelect.jsx";
-import { TASK_PRIORITY_META } from "../../../utils/taskPriority.js";
-import { formatDueDate, isOverdue } from "../../../utils/date.js";
+import PrioritySelect from "../TaskPriorityControl/PrioritySelect.jsx";
+import { getDueDateInfo } from "../../../utils/date.js";
 import "./TaskItem.css";
 
-function TaskItem({ task, projectId, onStatusChange, onEdit, onDelete }) {
+function TaskItem({ task, projectId, onStatusChange, onPriorityChange, onToggleComplete, onEdit, onDelete }) {
   const navigate = useNavigate();
-  const { label: priorityLabel, icon: PriorityIcon, badgeVariant } = TASK_PRIORITY_META[task.priority];
-  const dueLabel = formatDueDate(task.deadline);
-  const overdue = isOverdue(task.deadline, task.status);
+  const dueInfo = getDueDateInfo(task.deadline, task.status);
+  const isCompleted = task.status === "completed";
+  const isCancelled = task.status === "cancelled";
 
   function goToDetails() {
     navigate(`/projects/${projectId}/tasks/${task.id}`);
@@ -23,15 +22,32 @@ function TaskItem({ task, projectId, onStatusChange, onEdit, onDelete }) {
     }
   }
 
+  const itemClass = [
+    "task-item",
+    isCompleted && "task-item--completed",
+    isCancelled && "task-item--cancelled",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <div
-      className="task-item"
+      className={itemClass}
       role="button"
       tabIndex={0}
       onClick={goToDetails}
       onKeyDown={handleKeyDown}
       aria-label={`Open ${task.title}`}
     >
+      <input
+        type="checkbox"
+        className="task-item__checkbox"
+        checked={isCompleted}
+        aria-label={isCompleted ? `Mark ${task.title} as todo` : `Mark ${task.title} as complete`}
+        onClick={(event) => event.stopPropagation()}
+        onChange={() => onToggleComplete(task)}
+      />
+
       <div className="task-item__body">
         <h3 className="task-item__title">{task.title}</h3>
         {task.description && <p className="task-item__description">{task.description}</p>}
@@ -41,16 +57,15 @@ function TaskItem({ task, projectId, onStatusChange, onEdit, onDelete }) {
             onChange={(next) => onStatusChange(task, next)}
             label={`Status for ${task.title}`}
           />
-          <Badge variant={badgeVariant} className="task-item__priority">
-            <PriorityIcon size={12} aria-hidden="true" />
-            {priorityLabel}
-          </Badge>
-          {dueLabel && (
-            <span className={`task-item__due ${overdue ? "task-item__due--overdue" : ""}`}>
-              <CalendarClock size={12} aria-hidden="true" />
-              {overdue ? `Overdue · ${dueLabel}` : dueLabel}
-            </span>
-          )}
+          <PrioritySelect
+            value={task.priority}
+            onChange={(next) => onPriorityChange(task, next)}
+            label={`Priority for ${task.title}`}
+          />
+          <span className={`task-item__due task-item__due--${dueInfo.urgency}`}>
+            {dueInfo.urgency !== "none" && <CalendarClock size={12} aria-hidden="true" />}
+            {dueInfo.label}
+          </span>
         </div>
       </div>
 

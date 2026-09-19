@@ -3,7 +3,7 @@ import { ChevronRight, Pencil, Trash2 } from "lucide-react";
 import Button from "../../Button/Button.jsx";
 import "./TaskHeader.css";
 
-function TaskHeader({ projectId, projectName, taskTitle, onEdit, onDelete }) {
+function TaskHeader({ projectId, projectName, taskTitle, isCompleted, onEdit, onDelete }) {
   return (
     <div className="task-header">
       <nav className="task-header__breadcrumb" aria-label="Breadcrumb">
@@ -17,7 +17,9 @@ function TaskHeader({ projectId, projectName, taskTitle, onEdit, onDelete }) {
       </nav>
 
       <div className="task-header__top">
-        <h1 className="task-header__title">{taskTitle}</h1>
+        <h1 className={`task-header__title ${isCompleted ? "task-header__title--completed" : ""}`}>
+          {taskTitle}
+        </h1>
         <div className="task-header__actions">
           <Button variant="secondary" onClick={onEdit}>
             <Pencil size={16} aria-hidden="true" />

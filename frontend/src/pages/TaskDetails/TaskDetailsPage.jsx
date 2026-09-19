@@ -125,6 +125,7 @@ function TaskDetailsPage() {
         projectId={projectId}
         projectName={project?.name}
         taskTitle={task.title}
+        isCompleted={task.status === "completed"}
         onEdit={() => setIsEditOpen(true)}
         onDelete={() => setIsDeleteOpen(true)}
       />
