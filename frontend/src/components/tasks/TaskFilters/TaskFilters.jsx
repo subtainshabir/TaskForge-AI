@@ -1,25 +1,22 @@
 import { Search } from "lucide-react";
-import "../../projects/ProjectFilters/ProjectFilters.css";
+import "../TaskFilterBar/TaskFilterBar.css";
 import { TASK_STATUS_FILTERS } from "../../../utils/taskStatus.js";
+import { TASK_PRIORITIES, TASK_PRIORITY_META } from "../../../utils/taskPriority.js";
+import { DUE_FILTERS } from "../../../utils/taskFilterSort.js";
 
-function TaskFilters({ status, onStatusChange, search, onSearchChange }) {
+function TaskFilters({
+  status,
+  onStatusChange,
+  priority,
+  onPriorityChange,
+  due,
+  onDueChange,
+  search,
+  onSearchChange,
+}) {
   return (
-    <div className="project-filters">
-      <div className="project-filters__status" role="group" aria-label="Filter by status">
-        {TASK_STATUS_FILTERS.map(({ value, label }) => (
-          <button
-            key={value || "all"}
-            type="button"
-            className="project-filters__pill"
-            aria-pressed={status === value}
-            onClick={() => onStatusChange(value)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      <label className="project-filters__search">
+    <div className="task-filter-bar">
+      <label className="task-filter-bar__search">
         <Search size={16} aria-hidden="true" />
         <input
           type="search"
@@ -29,6 +26,49 @@ function TaskFilters({ status, onStatusChange, search, onSearchChange }) {
           onChange={(event) => onSearchChange(event.target.value)}
         />
       </label>
+
+      <select
+        className="filter-select"
+        aria-label="Filter by status"
+        data-active={Boolean(status)}
+        value={status}
+        onChange={(event) => onStatusChange(event.target.value)}
+      >
+        {TASK_STATUS_FILTERS.map(({ value, label }) => (
+          <option key={value || "all"} value={value}>
+            {value ? label : "Status: All"}
+          </option>
+        ))}
+      </select>
+
+      <select
+        className="filter-select"
+        aria-label="Filter by priority"
+        data-active={Boolean(priority)}
+        value={priority}
+        onChange={(event) => onPriorityChange(event.target.value)}
+      >
+        <option value="">Priority: All</option>
+        {TASK_PRIORITIES.map((value) => (
+          <option key={value} value={value}>
+            {TASK_PRIORITY_META[value].label}
+          </option>
+        ))}
+      </select>
+
+      <select
+        className="filter-select"
+        aria-label="Filter by due date"
+        data-active={Boolean(due)}
+        value={due}
+        onChange={(event) => onDueChange(event.target.value)}
+      >
+        {DUE_FILTERS.map(({ value, label }) => (
+          <option key={value || "all"} value={value}>
+            {value ? label : "Due: All"}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }

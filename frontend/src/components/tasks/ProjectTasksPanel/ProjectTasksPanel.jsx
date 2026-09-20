@@ -5,20 +5,38 @@ import Button from "../../Button/Button.jsx";
 import Modal from "../../Modal/Modal.jsx";
 import { EmptyState, ErrorState } from "../../StatePanel/StatePanel.jsx";
 import TaskFilters from "../TaskFilters/TaskFilters.jsx";
-import TaskList from "../TaskList/Tasklist.jsx";
+import TaskSort from "../TaskSort/TaskSort.jsx";
+import ActiveFilters from "../ActiveFilters/ActiveFilters.jsx";
+import TaskList from "../TaskList/TaskList.jsx";
 import TaskForm from "../TaskForm/TaskForm.jsx";
 import DeleteTaskDialog from "../DeleteTaskDialog/DeleteTaskDialog.jsx";
 import { useTasks } from "../../../hooks/useTasks.js";
+import { useTaskFilters } from "../../../hooks/useTaskFilters.js";
 import { taskService } from "../../../services/taskService.js";
 import { apiErrorMessage } from "../../../utils/apiErrorMessage.js";
+import { filterTasks, sortTasks } from "../../../utils/taskFilterSort.js";
 import "./ProjectTasksPanel.css";
 
 function ProjectTasksPanel({ projectId }) {
   const { tasks, isLoading, error, refetch, addTask, replaceTask, removeTask } =
     useTasks(projectId);
 
-  const [statusFilter, setStatusFilter] = useState("");
-  const [search, setSearch] = useState("");
+  const {
+    status,
+    priority,
+    due,
+    search,
+    sortBy,
+    order,
+    setStatus,
+    setPriority,
+    setDue,
+    setSearch,
+    setSort,
+    toggleOrder,
+    clearFilters,
+    hasActiveFilters,
+  } = useTaskFilters();
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
@@ -30,20 +48,12 @@ function ProjectTasksPanel({ projectId }) {
   const [deleteError, setDeleteError] = useState("");
   const [quickUpdateError, setQuickUpdateError] = useState("");
 
-  const filteredTasks = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return tasks.filter((task) => {
-      const matchesStatus = !statusFilter || task.status === statusFilter;
-      const matchesSearch =
-        !query ||
-        task.title.toLowerCase().includes(query) ||
-        (task.description || "").toLowerCase().includes(query);
-      return matchesStatus && matchesSearch;
-    });
-  }, [tasks, statusFilter, search]);
+  const visibleTasks = useMemo(() => {
+    const filtered = filterTasks(tasks, { status, priority, due, search });
+    return sortTasks(filtered, sortBy, order);
+  }, [tasks, status, priority, due, search, sortBy, order]);
 
   const hasAnyTasks = tasks.length > 0;
-  const hasActiveFilters = Boolean(statusFilter || search.trim());
 
   async function handleCreate(payload) {
     setIsSaving(true);
@@ -140,12 +150,39 @@ function ProjectTasksPanel({ projectId }) {
       </div>
 
       {hasAnyTasks && (
-        <TaskFilters
-          status={statusFilter}
-          onStatusChange={setStatusFilter}
-          search={search}
-          onSearchChange={setSearch}
-        />
+        <>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)", alignItems: "center" }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <TaskFilters
+                status={status}
+                onStatusChange={setStatus}
+                priority={priority}
+                onPriorityChange={setPriority}
+                due={due}
+                onDueChange={setDue}
+                search={search}
+                onSearchChange={setSearch}
+              />
+            </div>
+            <TaskSort sortBy={sortBy} order={order} onSortChange={setSort} onToggleOrder={toggleOrder} />
+          </div>
+
+          <ActiveFilters
+            status={status}
+            priority={priority}
+            due={due}
+            search={search}
+            onClearStatus={() => setStatus("")}
+            onClearPriority={() => setPriority("")}
+            onClearDue={() => setDue("")}
+            onClearSearch={() => setSearch("")}
+            onClearAll={clearFilters}
+          />
+
+          <p className="task-count">
+            {hasActiveFilters ? `Showing ${visibleTasks.length} of ${tasks.length} tasks` : `${tasks.length} tasks`}
+          </p>
+        </>
       )}
 
       {quickUpdateError && (
@@ -196,32 +233,24 @@ function ProjectTasksPanel({ projectId }) {
         </Card>
       )}
 
-      {!error && !isLoading && hasAnyTasks && filteredTasks.length === 0 && (
+      {!error && !isLoading && hasAnyTasks && visibleTasks.length === 0 && (
         <Card className="project-tasks-panel__empty-card">
           <EmptyState
             icon={<SearchX size={22} aria-hidden="true" />}
-            title="No tasks match your filters"
-            description="Try a different search term or clear the current filters."
+            title="No tasks match these filters"
+            description="Try changing or clearing your filters."
             action={
-              hasActiveFilters && (
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setStatusFilter("");
-                    setSearch("");
-                  }}
-                >
-                  Clear filters
-                </Button>
-              )
+              <Button variant="secondary" onClick={clearFilters}>
+                Clear filters
+              </Button>
             }
           />
         </Card>
       )}
 
-      {!error && !isLoading && filteredTasks.length > 0 && (
+      {!error && !isLoading && visibleTasks.length > 0 && (
         <TaskList
-          tasks={filteredTasks}
+          tasks={visibleTasks}
           isLoading={false}
           projectId={projectId}
           onStatusChange={handleStatusChange}

@@ -1,0 +1,166 @@
+.task-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.task-filter-bar__search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 36px;
+  padding: 0 var(--space-3);
+  min-width: 200px;
+  flex: 1 1 200px;
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-tertiary);
+}
+.task-filter-bar__search input {
+  border: none;
+  background: transparent;
+  outline: none;
+  flex: 1;
+  color: var(--color-text-primary);
+  font-size: var(--text-sm);
+}
+.task-filter-bar__search input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.filter-select {
+  height: 36px;
+  padding: 0 var(--space-6) 0 var(--space-3);
+  border-radius: var(--radius-md);
+  border: var(--border-width) solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a8f9c' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--space-3) center;
+}
+.filter-select:focus-visible {
+  outline: 2px solid var(--focus-ring-color);
+  outline-offset: 2px;
+}
+.filter-select[data-active="true"] {
+  border-color: var(--color-ai);
+  color: var(--color-ai-strong);
+  background-color: var(--color-ai-soft);
+}
+
+.task-sort {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: auto;
+}
+
+.task-sort__toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  border: var(--border-width) solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+.task-sort__toggle:hover {
+  border-color: var(--color-border-strong);
+}
+.task-sort__toggle:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.task-count {
+  font-size: var(--text-sm);
+  color: var(--color-text-tertiary);
+  margin-bottom: var(--space-3);
+}
+
+.active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.active-filters__label {
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.active-filters__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 26px;
+  padding: 0 var(--space-1) 0 var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--color-ai-soft);
+  color: var(--color-ai-strong);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+.active-filters__chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.active-filters__chip-remove:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.active-filters__clear {
+  background: transparent;
+  border: none;
+  color: var(--color-text-tertiary);
+  font-size: var(--text-xs);
+  text-decoration: underline;
+  cursor: pointer;
+  margin-left: var(--space-1);
+}
+.active-filters__clear:hover {
+  color: var(--color-danger);
+}
+
+@media (max-width: 640px) {
+  .task-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .task-filter-bar__search {
+    flex: 1 1 auto;
+  }
+  .filter-select {
+    flex: 1 1 auto;
+  }
+  .task-sort {
+    margin-left: 0;
+    justify-content: space-between;
+  }
+  .task-sort select {
+    flex: 1;
+  }
+}
