@@ -1,6 +1,6 @@
-from typing import List
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user
@@ -29,11 +29,12 @@ def create_task(
 @router.get("/projects/{project_id}/tasks", response_model=List[TaskResponse])
 def list_project_tasks(
     project_id: int,
+    search: Optional[str] = Query(default=None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> List[TaskResponse]:
     get_owned_project(db, current_user.id, project_id)
-    return service.list_tasks(db, project_id)
+    return service.list_tasks(db, project_id, search=search)
 
 
 @router.get("/tasks/{task_id}", response_model=TaskResponse)

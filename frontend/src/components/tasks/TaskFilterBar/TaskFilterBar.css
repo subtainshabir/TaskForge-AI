@@ -30,6 +30,27 @@
 .task-filter-bar__search input::placeholder {
   color: var(--color-text-tertiary);
 }
+.task-filter-bar__search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.task-filter-bar__search-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.task-filter-bar__search-clear:hover {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-primary);
+}
 
 .filter-select {
   height: 36px;

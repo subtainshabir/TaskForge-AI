@@ -35,19 +35,13 @@ export function defaultOrderFor(sortBy) {
   return SORT_DEFAULT_ORDER[sortBy] || "desc";
 }
 
-export function filterTasks(tasks, { status, priority, due, search }) {
-  const query = (search || "").trim().toLowerCase();
+export function filterTasks(tasks, { status, priority, due }) {
   return tasks.filter((task) => {
     if (status && task.status !== status) return false;
     if (priority && task.priority !== priority) return false;
     if (due) {
       const urgency = getDueDateInfo(task.deadline, task.status).urgency;
       if (urgency !== due) return false;
-    }
-    if (query) {
-      const inTitle = task.title.toLowerCase().includes(query);
-      const inDescription = (task.description || "").toLowerCase().includes(query);
-      if (!inTitle && !inDescription) return false;
     }
     return true;
   });

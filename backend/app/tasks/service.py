@@ -1,7 +1,7 @@
-from typing import List
+from typing import List, Optional
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.models.enums import TaskPriority, WorkStatus
@@ -10,8 +10,15 @@ from app.models.task import Task
 from app.tasks.schemas import TaskCreate, TaskUpdate
 
 
-def list_tasks(db: Session, project_id: int) -> List[Task]:
-    query = select(Task).where(Task.project_id == project_id).order_by(Task.created_at.desc())
+def list_tasks(db: Session, project_id: int, search: Optional[str] = None) -> List[Task]:
+    query = select(Task).where(Task.project_id == project_id)
+
+    term = (search or "").strip()
+    if term:
+        pattern = f"%{term}%"
+        query = query.where(or_(Task.title.ilike(pattern), Task.description.ilike(pattern)))
+
+    query = query.order_by(Task.created_at.desc())
     return list(db.execute(query).scalars().all())
 
 

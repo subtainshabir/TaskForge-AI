@@ -12,15 +12,13 @@ import TaskForm from "../TaskForm/TaskForm.jsx";
 import DeleteTaskDialog from "../DeleteTaskDialog/DeleteTaskDialog.jsx";
 import { useTasks } from "../../../hooks/useTasks.js";
 import { useTaskFilters } from "../../../hooks/useTaskFilters.js";
+import { useDebouncedValue } from "../../../hooks/useDebouncedValue.js";
 import { taskService } from "../../../services/taskService.js";
 import { apiErrorMessage } from "../../../utils/apiErrorMessage.js";
 import { filterTasks, sortTasks } from "../../../utils/taskFilterSort.js";
 import "./ProjectTasksPanel.css";
 
 function ProjectTasksPanel({ projectId }) {
-  const { tasks, isLoading, error, refetch, addTask, replaceTask, removeTask } =
-    useTasks(projectId);
-
   const {
     status,
     priority,
@@ -38,6 +36,17 @@ function ProjectTasksPanel({ projectId }) {
     hasActiveFilters,
   } = useTaskFilters();
 
+  const debouncedSearch = useDebouncedValue(search, 350);
+  const isSearchActive = Boolean(debouncedSearch.trim());
+  const hasClientFilters = Boolean(status || priority || due);
+
+  const { tasks, isLoading, error, refetch, addTask, replaceTask, removeTask } = useTasks(
+    projectId,
+    debouncedSearch
+  );
+
+  const isSearching = isSearchActive && isLoading;
+
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [deletingTask, setDeletingTask] = useState(null);
@@ -49,11 +58,13 @@ function ProjectTasksPanel({ projectId }) {
   const [quickUpdateError, setQuickUpdateError] = useState("");
 
   const visibleTasks = useMemo(() => {
-    const filtered = filterTasks(tasks, { status, priority, due, search });
+    const filtered = filterTasks(tasks, { status, priority, due });
     return sortTasks(filtered, sortBy, order);
-  }, [tasks, status, priority, due, search, sortBy, order]);
+  }, [tasks, status, priority, due, sortBy, order]);
 
-  const hasAnyTasks = tasks.length > 0;
+  const showNoTasksYet = !isSearchActive && tasks.length === 0;
+  const showNoSearchResults = isSearchActive && tasks.length === 0;
+  const showNoFilterResults = tasks.length > 0 && visibleTasks.length === 0;
 
   async function handleCreate(payload) {
     setIsSaving(true);
@@ -139,6 +150,14 @@ function ProjectTasksPanel({ projectId }) {
     }
   }
 
+  function countLabel() {
+    if (isSearchActive) return `${visibleTasks.length} tasks found`;
+    if (hasClientFilters) return `Showing ${visibleTasks.length} of ${tasks.length} tasks`;
+    return `${tasks.length} tasks`;
+  }
+
+  const showToolbar = tasks.length > 0 || isSearchActive || hasClientFilters;
+
   return (
     <div>
       <div className="project-tasks-panel__header">
@@ -149,7 +168,7 @@ function ProjectTasksPanel({ projectId }) {
         </Button>
       </div>
 
-      {hasAnyTasks && (
+      {showToolbar && (
         <>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)", alignItems: "center" }}>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -162,6 +181,7 @@ function ProjectTasksPanel({ projectId }) {
                 onDueChange={setDue}
                 search={search}
                 onSearchChange={setSearch}
+                isSearching={isSearching}
               />
             </div>
             <TaskSort sortBy={sortBy} order={order} onSortChange={setSort} onToggleOrder={toggleOrder} />
@@ -179,9 +199,7 @@ function ProjectTasksPanel({ projectId }) {
             onClearAll={clearFilters}
           />
 
-          <p className="task-count">
-            {hasActiveFilters ? `Showing ${visibleTasks.length} of ${tasks.length} tasks` : `${tasks.length} tasks`}
-          </p>
+          {!isLoading && !error && <p className="task-count">{countLabel()}</p>}
         </>
       )}
 
@@ -217,7 +235,7 @@ function ProjectTasksPanel({ projectId }) {
 
       {!error && isLoading && <TaskList tasks={[]} isLoading projectId={projectId} />}
 
-      {!error && !isLoading && !hasAnyTasks && (
+      {!error && !isLoading && showNoTasksYet && (
         <Card className="project-tasks-panel__empty-card">
           <EmptyState
             icon={<CheckSquare size={22} aria-hidden="true" />}
@@ -233,7 +251,22 @@ function ProjectTasksPanel({ projectId }) {
         </Card>
       )}
 
-      {!error && !isLoading && hasAnyTasks && visibleTasks.length === 0 && (
+      {!error && !isLoading && showNoSearchResults && (
+        <Card className="project-tasks-panel__empty-card">
+          <EmptyState
+            icon={<SearchX size={22} aria-hidden="true" />}
+            title="No tasks found"
+            description={`No tasks match "${debouncedSearch.trim()}". Try a different search term.`}
+            action={
+              <Button variant="secondary" onClick={() => setSearch("")}>
+                Clear search
+              </Button>
+            }
+          />
+        </Card>
+      )}
+
+      {!error && !isLoading && !showNoSearchResults && showNoFilterResults && (
         <Card className="project-tasks-panel__empty-card">
           <EmptyState
             icon={<SearchX size={22} aria-hidden="true" />}

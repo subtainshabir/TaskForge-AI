@@ -1,4 +1,5 @@
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
+import Spinner from "../../Spinner/Spinner.jsx";
 import "../TaskFilterBar/TaskFilterBar.css";
 import { TASK_STATUS_FILTERS } from "../../../utils/taskStatus.js";
 import { TASK_PRIORITIES, TASK_PRIORITY_META } from "../../../utils/taskPriority.js";
@@ -13,18 +14,29 @@ function TaskFilters({
   onDueChange,
   search,
   onSearchChange,
+  isSearching,
 }) {
   return (
     <div className="task-filter-bar">
       <label className="task-filter-bar__search">
-        <Search size={16} aria-hidden="true" />
+        {isSearching ? <Spinner size="sm" label="Searching" /> : <Search size={16} aria-hidden="true" />}
         <input
           type="search"
-          placeholder="Search tasks"
+          placeholder="Search tasks..."
           aria-label="Search tasks"
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
         />
+        {search && (
+          <button
+            type="button"
+            className="task-filter-bar__search-clear"
+            aria-label="Clear search"
+            onClick={() => onSearchChange("")}
+          >
+            <X size={14} aria-hidden="true" />
+          </button>
+        )}
       </label>
 
       <select
