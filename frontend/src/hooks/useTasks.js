@@ -2,14 +2,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { taskService } from "../services/taskService.js";
 import { apiErrorMessage } from "../utils/apiErrorMessage.js";
 
-export function useTasks(projectId, search = "") {
+export function useTasks(projectId = null, search = "") {
   const [tasks, setTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const requestIdRef = useRef(0);
 
   const fetchTasks = useCallback(async () => {
-    if (!projectId) return;
     const requestId = ++requestIdRef.current;
     setIsLoading(true);
     setError("");
@@ -17,7 +16,9 @@ export function useTasks(projectId, search = "") {
       const params = {};
       const term = search.trim();
       if (term) params.search = term;
-      const data = await taskService.list(projectId, params);
+      const data = projectId
+        ? await taskService.list(projectId, params)
+        : await taskService.listAll(params);
       if (requestId !== requestIdRef.current) return;
       setTasks(data);
     } catch (err) {

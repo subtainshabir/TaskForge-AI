@@ -1,18 +1,28 @@
-import { useNavigate } from "react-router-dom";
-import { CalendarClock, Pencil, Trash2 } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { CalendarClock, FolderKanban, Lock, Pencil, Trash2 } from "lucide-react";
 import StatusSelect from "../StatusSelect/StatusSelect.jsx";
 import PrioritySelect from "../TaskPriorityControl/PrioritySelect.jsx";
 import { getDueDateInfo } from "../../../utils/date.js";
 import "./TaskItem.css";
 
-function TaskItem({ task, projectId, onStatusChange, onPriorityChange, onToggleComplete, onEdit, onDelete }) {
+function TaskItem({
+  task,
+  projectId,
+  showProject = !projectId,
+  onStatusChange,
+  onPriorityChange,
+  onToggleComplete,
+  onEdit,
+  onDelete,
+}) {
   const navigate = useNavigate();
+  const targetProjectId = projectId || task.project_id;
   const dueInfo = getDueDateInfo(task.deadline, task.status);
   const isCompleted = task.status === "completed";
   const isCancelled = task.status === "cancelled";
 
   function goToDetails() {
-    navigate(`/projects/${projectId}/tasks/${task.id}`);
+    navigate(`/projects/${targetProjectId}/tasks/${task.id}`);
   }
 
   function handleKeyDown(event) {
@@ -50,6 +60,19 @@ function TaskItem({ task, projectId, onStatusChange, onPriorityChange, onToggleC
 
       <div className="task-item__body">
         <h3 className="task-item__title">{task.title}</h3>
+        {showProject && task.project_name && (
+          <div className="task-item__project">
+            <Link
+              to={`/projects/${targetProjectId}`}
+              className="task-item__project-link"
+              onClick={(event) => event.stopPropagation()}
+              title={`Open project: ${task.project_name}`}
+            >
+              <FolderKanban size={13} aria-hidden="true" />
+              <span>{task.project_name}</span>
+            </Link>
+          </div>
+        )}
         {task.description && <p className="task-item__description">{task.description}</p>}
         <div className="task-item__meta">
           <StatusSelect
@@ -62,6 +85,12 @@ function TaskItem({ task, projectId, onStatusChange, onPriorityChange, onToggleC
             onChange={(next) => onPriorityChange(task, next)}
             label={`Priority for ${task.title}`}
           />
+          {task.is_blocked && (
+            <span className="task-item__blocked" title="Blocked by prerequisite tasks">
+              <Lock size={12} aria-hidden="true" />
+              Blocked
+            </span>
+          )}
           <span className={`task-item__due task-item__due--${dueInfo.urgency}`}>
             {dueInfo.urgency !== "none" && <CalendarClock size={12} aria-hidden="true" />}
             {dueInfo.label}

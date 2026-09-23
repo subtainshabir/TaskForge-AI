@@ -10,6 +10,7 @@ export function useTaskFilters() {
   const status = searchParams.get("status") || "";
   const priority = searchParams.get("priority") || "";
   const due = searchParams.get("due") || "";
+  const project = searchParams.get("project") || "";
   const search = searchParams.get("q") || "";
   const sortBy = searchParams.get("sort") || DEFAULT_SORT;
   const order = searchParams.get("order") || defaultOrderFor(sortBy);
@@ -52,25 +53,27 @@ export function useTaskFilters() {
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
-        ["status", "priority", "due", "q", "sort", "order"].forEach((key) => next.delete(key));
+        ["status", "priority", "due", "project", "q", "sort", "order"].forEach((key) => next.delete(key));
         return next;
       },
       { replace: true }
     );
   }, [setSearchParams]);
 
-  const hasActiveFilters = Boolean(status || priority || due || search.trim());
+  const hasActiveFilters = Boolean(status || priority || due || project || search.trim());
 
   return {
     status,
     priority,
     due,
+    project,
     search,
     sortBy,
     order,
     setStatus: (value) => setParam("status", value),
     setPriority: (value) => setParam("priority", value),
     setDue: (value) => setParam("due", value),
+    setProject: (value) => setParam("project", value),
     setSearch: (value) => setParam("q", value),
     setSort,
     toggleOrder,

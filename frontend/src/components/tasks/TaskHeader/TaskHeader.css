@@ -34,6 +34,13 @@
   flex-wrap: wrap;
 }
 
+.task-header__title-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
 .task-header__title {
   margin: 0;
   overflow-wrap: anywhere;

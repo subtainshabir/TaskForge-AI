@@ -51,5 +51,29 @@ class TaskResponse(BaseModel):
     status: TaskStatusLiteral
     priority: TaskPriorityLiteral
     deadline: Optional[datetime]
+    is_blocked: bool = False
+    project_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+
+
+class TaskDependencyCreate(BaseModel):
+    depends_on_task_id: int
+
+
+class TaskSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str
+    status: TaskStatusLiteral
+
+
+class TaskDependencyResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    task_id: int
+    depends_on_task_id: int
+    dependency_task: TaskSummary
+    created_at: datetime

@@ -57,3 +57,38 @@ class Task(Base, TimestampMixin):
     )
     notes: Mapped[List["Note"]] = relationship(back_populates="task")
     conversations: Mapped[List["Conversation"]] = relationship(back_populates="task")
+    dependencies: Mapped[List["TaskDependency"]] = relationship(
+        "TaskDependency",
+        foreign_keys="TaskDependency.task_id",
+        back_populates="task",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    dependents: Mapped[List["TaskDependency"]] = relationship(
+        "TaskDependency",
+        foreign_keys="TaskDependency.depends_on_task_id",
+        back_populates="depends_on_task",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    activities: Mapped[List["TaskActivity"]] = relationship(
+        "TaskActivity",
+        back_populates="task",
+        cascade="all, delete-orphan",
+        order_by="TaskActivity.created_at.desc()",
+        lazy="selectin",
+    )
+
+    @property
+    def is_blocked(self) -> bool:
+        if not self.dependencies:
+            return False
+        return any(
+            dep.depends_on_task is not None
+            and dep.depends_on_task.status not in (WorkStatus.COMPLETED, WorkStatus.CANCELLED)
+            for dep in self.dependencies
+        )
+
+    @property
+    def project_name(self) -> Optional[str]:
+        return self.project.name if self.project else None

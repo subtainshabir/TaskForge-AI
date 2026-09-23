@@ -14,7 +14,7 @@ import "./Sidebar.css";
 const NAV_ITEMS = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/projects", label: "Projects", icon: FolderKanban },
-  { to: "/tasks", label: "Tasks", icon: CheckSquare },
+  { to: "/tasks", label: "Tasks", icon: CheckSquare, end: true },
   { to: "/notes", label: "Notes", icon: StickyNote },
   { to: "/search", label: "Search", icon: Search },
   { to: "/chat", label: "AI Chat", icon: Sparkles },

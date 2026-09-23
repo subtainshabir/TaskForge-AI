@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   LayoutList,
@@ -34,11 +34,19 @@ const SECTIONS = [
   { id: "activity", label: "Activity", icon: Activity, enabled: false },
 ];
 
-function ProjectDetailsPage() {
+function ProjectDetailsPage({ initialSection }) {
   const { projectId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const [activeSection, setActiveSection] = useState("overview");
+  const isTasksRoute = location.pathname.endsWith("/tasks") || initialSection === "tasks";
+  const [activeSection, setActiveSection] = useState(isTasksRoute ? "tasks" : "overview");
+
+  useEffect(() => {
+    if (location.pathname.endsWith("/tasks")) {
+      setActiveSection("tasks");
+    }
+  }, [location.pathname]);
   const [project, setProject] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");

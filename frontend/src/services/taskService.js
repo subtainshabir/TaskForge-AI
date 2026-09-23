@@ -14,6 +14,10 @@ export const taskService = {
     return apiClient.request(`/projects/${projectId}/tasks${buildQuery(params)}`);
   },
 
+  listAll(params = {}) {
+    return apiClient.request(`/tasks${buildQuery(params)}`);
+  },
+
   create(projectId, payload) {
     return apiClient.request(`/projects/${projectId}/tasks`, {
       method: "POST",
@@ -34,5 +38,22 @@ export const taskService = {
 
   remove(taskId) {
     return apiClient.request(`/tasks/${taskId}`, { method: "DELETE" });
+  },
+
+  getDependencies(taskId) {
+    return apiClient.request(`/tasks/${taskId}/dependencies`);
+  },
+
+  addDependency(taskId, dependsOnTaskId) {
+    return apiClient.request(`/tasks/${taskId}/dependencies`, {
+      method: "POST",
+      body: JSON.stringify({ depends_on_task_id: dependsOnTaskId }),
+    });
+  },
+
+  removeDependency(taskId, dependencyId) {
+    return apiClient.request(`/tasks/${taskId}/dependencies/${dependencyId}`, {
+      method: "DELETE",
+    });
   },
 };

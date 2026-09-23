@@ -35,8 +35,9 @@ export function defaultOrderFor(sortBy) {
   return SORT_DEFAULT_ORDER[sortBy] || "desc";
 }
 
-export function filterTasks(tasks, { status, priority, due }) {
+export function filterTasks(tasks, { status, priority, due, project }) {
   return tasks.filter((task) => {
+    if (project && String(task.project_id) !== String(project)) return false;
     if (status && task.status !== status) return false;
     if (priority && task.priority !== priority) return false;
     if (due) {

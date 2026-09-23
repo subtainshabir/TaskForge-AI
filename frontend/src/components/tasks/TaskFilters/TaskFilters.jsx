@@ -15,6 +15,9 @@ function TaskFilters({
   search,
   onSearchChange,
   isSearching,
+  projects,
+  projectId,
+  onProjectChange,
 }) {
   return (
     <div className="task-filter-bar">
@@ -38,6 +41,23 @@ function TaskFilters({
           </button>
         )}
       </label>
+
+      {projects && (
+        <select
+          className="filter-select"
+          aria-label="Filter by project"
+          data-active={Boolean(projectId)}
+          value={projectId || ""}
+          onChange={(event) => onProjectChange?.(event.target.value)}
+        >
+          <option value="">All Projects</option>
+          {projects.map((proj) => (
+            <option key={proj.id} value={proj.id}>
+              {proj.name}
+            </option>
+          ))}
+        </select>
+      )}
 
       <select
         className="filter-select"

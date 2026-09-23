@@ -13,6 +13,7 @@ import TaskDescription from "../../components/tasks/TaskDescription/TaskDescript
 import TaskMetadata from "../../components/tasks/TaskMetadata/TaskMetadata.jsx";
 import TaskForm from "../../components/tasks/TaskForm/TaskForm.jsx";
 import DeleteTaskDialog from "../../components/tasks/DeleteTaskDialog/DeleteTaskDialog.jsx";
+import TaskDependencies from "../../components/tasks/TaskDependencies/TaskDependencies.jsx";
 import { taskService } from "../../services/taskService.js";
 import { projectService } from "../../services/projectService.js";
 import { apiErrorMessage } from "../../utils/apiErrorMessage.js";
@@ -48,6 +49,13 @@ function TaskDetailsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [formError, setFormError] = useState("");
   const [deleteError, setDeleteError] = useState("");
+
+  const handleBlockedChange = useCallback((isBlocked) => {
+    setTask((prev) => {
+      if (!prev || prev.is_blocked === isBlocked) return prev;
+      return { ...prev, is_blocked: isBlocked };
+    });
+  }, []);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -126,14 +134,24 @@ function TaskDetailsPage() {
         projectName={project?.name}
         taskTitle={task.title}
         isCompleted={task.status === "completed"}
+        isBlocked={task.is_blocked}
         onEdit={() => setIsEditOpen(true)}
         onDelete={() => setIsDeleteOpen(true)}
       />
 
       <div className="task-controls">
-        <TaskStatusControl task={task} onUpdated={setTask} />
-        <TaskPriorityControl task={task} onUpdated={setTask} />
-        <TaskDueDateControl task={task} onUpdated={setTask} />
+        <TaskStatusControl
+          task={task}
+          onUpdated={(updated) => setTask(updated)}
+        />
+        <TaskPriorityControl
+          task={task}
+          onUpdated={(updated) => setTask(updated)}
+        />
+        <TaskDueDateControl
+          task={task}
+          onUpdated={(updated) => setTask(updated)}
+        />
       </div>
 
       <Card>
@@ -141,6 +159,12 @@ function TaskDetailsPage() {
         <TaskDescription description={task.description} />
         <TaskMetadata task={task} />
       </Card>
+
+      <TaskDependencies
+        taskId={taskId}
+        projectId={projectId}
+        onBlockedChange={handleBlockedChange}
+      />
 
       <Modal
         open={isEditOpen}

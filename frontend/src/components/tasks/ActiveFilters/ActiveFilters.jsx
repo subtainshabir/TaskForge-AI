@@ -4,9 +4,29 @@ import { TASK_STATUS_META } from "../../../utils/taskStatus.js";
 import { TASK_PRIORITY_META } from "../../../utils/taskPriority.js";
 import { DUE_FILTERS } from "../../../utils/taskFilterSort.js";
 
-function ActiveFilters({ status, priority, due, search, onClearStatus, onClearPriority, onClearDue, onClearSearch, onClearAll }) {
+function ActiveFilters({
+  status,
+  priority,
+  due,
+  search,
+  project,
+  projectName,
+  onClearStatus,
+  onClearPriority,
+  onClearDue,
+  onClearSearch,
+  onClearProject,
+  onClearAll,
+}) {
   const chips = [];
 
+  if (project) {
+    chips.push({
+      key: "project",
+      label: `Project: ${projectName || project}`,
+      onRemove: onClearProject,
+    });
+  }
   if (status) {
     chips.push({ key: "status", label: `Status: ${TASK_STATUS_META[status].label}`, onRemove: onClearStatus });
   }
@@ -17,7 +37,7 @@ function ActiveFilters({ status, priority, due, search, onClearStatus, onClearPr
     const dueLabel = DUE_FILTERS.find((option) => option.value === due)?.label || due;
     chips.push({ key: "due", label: `Due: ${dueLabel}`, onRemove: onClearDue });
   }
-  if (search.trim()) {
+  if (search && search.trim()) {
     chips.push({ key: "search", label: `Search: "${search.trim()}"`, onRemove: onClearSearch });
   }
 

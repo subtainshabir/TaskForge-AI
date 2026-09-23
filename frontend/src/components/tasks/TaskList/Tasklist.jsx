@@ -5,6 +5,7 @@ function TaskList({
   tasks,
   isLoading,
   projectId,
+  showProject,
   onStatusChange,
   onPriorityChange,
   onToggleComplete,
@@ -28,6 +29,7 @@ function TaskList({
           key={task.id}
           task={task}
           projectId={projectId}
+          showProject={showProject ?? !projectId}
           onStatusChange={onStatusChange}
           onPriorityChange={onPriorityChange}
           onToggleComplete={onToggleComplete}
