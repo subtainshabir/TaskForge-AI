@@ -3,12 +3,21 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
+from app.ai.base import AIProvider
+from app.ai.factory import get_ai_provider
+from app.ai.task_understanding.schemas import TaskAnalysisResponse
+from app.ai.task_understanding.service import analyze_task_understanding
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.user import User
 from app.projects.service import get_owned_project
 from app.tasks import service
 from app.tasks.schemas import (
+    PhaseCreate,
+    PhaseResponse,
+    PhaseUpdate,
+    PhasesGenerateRequest,
+    TaskActivityResponse,
     TaskCreate,
     TaskDependencyCreate,
     TaskDependencyResponse,
@@ -126,3 +135,89 @@ def delete_dependency(
     db: Session = Depends(get_db),
 ) -> None:
     service.delete_dependency(db, current_user.id, task_id, dependency_id)
+
+
+@router.get("/tasks/{task_id}/activities", response_model=List[TaskActivityResponse])
+def get_task_activities(
+    task_id: int,
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> List[TaskActivityResponse]:
+    return service.list_task_activities(db, current_user.id, task_id, page=page, limit=limit)
+
+
+@router.post(
+    "/tasks/{task_id}/ai/analyze",
+    response_model=TaskAnalysisResponse,
+)
+def analyze_task_ai(
+    task_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    ai_provider: AIProvider = Depends(get_ai_provider),
+) -> TaskAnalysisResponse:
+    task = service.get_owned_task(db, current_user.id, task_id)
+    return analyze_task_understanding(task, ai_provider)
+
+
+@router.get("/tasks/{task_id}/phases", response_model=List[PhaseResponse])
+def get_task_phases(
+    task_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> List[PhaseResponse]:
+    return service.get_task_phases(db, current_user.id, task_id)
+
+
+@router.post(
+    "/tasks/{task_id}/phases",
+    response_model=PhaseResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_phase(
+    task_id: int,
+    payload: PhaseCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> PhaseResponse:
+    return service.create_phase(db, current_user.id, task_id, payload)
+
+
+@router.patch("/tasks/{task_id}/phases/{phase_id}", response_model=PhaseResponse)
+def update_phase(
+    task_id: int,
+    phase_id: int,
+    payload: PhaseUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> PhaseResponse:
+    return service.update_phase(db, current_user.id, task_id, phase_id, payload)
+
+
+@router.delete(
+    "/tasks/{task_id}/phases/{phase_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_phase(
+    task_id: int,
+    phase_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> None:
+    service.delete_phase(db, current_user.id, task_id, phase_id)
+
+
+@router.post("/tasks/{task_id}/phases/generate", response_model=List[PhaseResponse])
+def generate_phases(
+    task_id: int,
+    payload: Optional[PhasesGenerateRequest] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    ai_provider: AIProvider = Depends(get_ai_provider),
+) -> List[PhaseResponse]:
+    replace_existing = payload.replace_existing if payload else False
+    return service.generate_task_phases(
+        db, current_user.id, task_id, ai_provider, replace_existing=replace_existing
+    )

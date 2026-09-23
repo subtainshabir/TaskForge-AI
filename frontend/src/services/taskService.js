@@ -56,4 +56,45 @@ export const taskService = {
       method: "DELETE",
     });
   },
+
+  getActivities(taskId, params = {}) {
+    return apiClient.request(`/tasks/${taskId}/activities${buildQuery(params)}`);
+  },
+
+  analyzeWithAI(taskId) {
+    return apiClient.request(`/tasks/${taskId}/ai/analyze`, {
+      method: "POST",
+    });
+  },
+
+  getPhases(taskId) {
+    return apiClient.request(`/tasks/${taskId}/phases`);
+  },
+
+  createPhase(taskId, payload) {
+    return apiClient.request(`/tasks/${taskId}/phases`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updatePhase(taskId, phaseId, payload) {
+    return apiClient.request(`/tasks/${taskId}/phases/${phaseId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  deletePhase(taskId, phaseId) {
+    return apiClient.request(`/tasks/${taskId}/phases/${phaseId}`, {
+      method: "DELETE",
+    });
+  },
+
+  generatePhases(taskId, replaceExisting = false) {
+    return apiClient.request(`/tasks/${taskId}/phases/generate`, {
+      method: "POST",
+      body: JSON.stringify({ replace_existing: replaceExisting }),
+    });
+  },
 };

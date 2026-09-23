@@ -1,6 +1,7 @@
+from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import CheckConstraint
+from sqlalchemy import CheckConstraint, DateTime
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy import ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -37,6 +38,7 @@ class Phase(Base, TimestampMixin):
     progress: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     estimated_minutes: Mapped[Optional[int]] = mapped_column(Integer)
     actual_minutes: Mapped[Optional[int]] = mapped_column(Integer)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     task: Mapped["Task"] = relationship(back_populates="phases")
     subtasks: Mapped[List["Subtask"]] = relationship(

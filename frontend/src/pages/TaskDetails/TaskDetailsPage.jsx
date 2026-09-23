@@ -14,6 +14,9 @@ import TaskMetadata from "../../components/tasks/TaskMetadata/TaskMetadata.jsx";
 import TaskForm from "../../components/tasks/TaskForm/TaskForm.jsx";
 import DeleteTaskDialog from "../../components/tasks/DeleteTaskDialog/DeleteTaskDialog.jsx";
 import TaskDependencies from "../../components/tasks/TaskDependencies/TaskDependencies.jsx";
+import TaskPhases from "../../components/tasks/TaskPhases/TaskPhases.jsx";
+import TaskAIAnalysis from "../../components/tasks/TaskAIAnalysis/TaskAIAnalysis.jsx";
+import TaskActivity from "../../components/tasks/TaskActivity/TaskActivity.jsx";
 import { taskService } from "../../services/taskService.js";
 import { projectService } from "../../services/projectService.js";
 import { apiErrorMessage } from "../../utils/apiErrorMessage.js";
@@ -49,6 +52,9 @@ function TaskDetailsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [formError, setFormError] = useState("");
   const [deleteError, setDeleteError] = useState("");
+  const [activityRefreshKey, setActivityRefreshKey] = useState(0);
+
+  const triggerActivityRefresh = () => setActivityRefreshKey((k) => k + 1);
 
   const handleBlockedChange = useCallback((isBlocked) => {
     setTask((prev) => {
@@ -85,6 +91,7 @@ function TaskDetailsPage() {
       const updated = await taskService.update(taskId, payload);
       setTask(updated);
       setIsEditOpen(false);
+      triggerActivityRefresh();
     } catch (err) {
       setFormError(apiErrorMessage(err, "This task no longer exists."));
     } finally {
@@ -142,15 +149,24 @@ function TaskDetailsPage() {
       <div className="task-controls">
         <TaskStatusControl
           task={task}
-          onUpdated={(updated) => setTask(updated)}
+          onUpdated={(updated) => {
+            setTask(updated);
+            triggerActivityRefresh();
+          }}
         />
         <TaskPriorityControl
           task={task}
-          onUpdated={(updated) => setTask(updated)}
+          onUpdated={(updated) => {
+            setTask(updated);
+            triggerActivityRefresh();
+          }}
         />
         <TaskDueDateControl
           task={task}
-          onUpdated={(updated) => setTask(updated)}
+          onUpdated={(updated) => {
+            setTask(updated);
+            triggerActivityRefresh();
+          }}
         />
       </div>
 
@@ -164,7 +180,14 @@ function TaskDetailsPage() {
         taskId={taskId}
         projectId={projectId}
         onBlockedChange={handleBlockedChange}
+        onDependencyChange={triggerActivityRefresh}
       />
+
+      <TaskPhases taskId={taskId} onPhaseChange={triggerActivityRefresh} />
+
+      <TaskAIAnalysis taskId={taskId} />
+
+      <TaskActivity taskId={taskId} refreshKey={activityRefreshKey} />
 
       <Modal
         open={isEditOpen}
