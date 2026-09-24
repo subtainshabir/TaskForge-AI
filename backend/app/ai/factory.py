@@ -40,6 +40,91 @@ class MockAIProvider(AIProvider):
 
         lower_text = f"{title} {description}".lower()
 
+        # Check if requested to refine/review existing phases
+        if system_prompt and any(w in system_prompt.lower() for w in ["refinement", "refine", "review your existing", "review a user's"]):
+            current_phase_list = []
+            for line in prompt.splitlines():
+                match = re.search(r"\[Phase ID: (\d+)\] \"([^\"]+)\"", line)
+                if match:
+                    current_phase_list.append({"id": int(match.group(1)), "title": match.group(2)})
+
+            suggestions = []
+            # Look for setup phase to rename
+            setup_phase = next((p for p in current_phase_list if "setup" in p["title"].lower() and "project" not in p["title"].lower()), None)
+            if setup_phase:
+                suggestions.append({
+                    "id": "sug-1",
+                    "type": "rename",
+                    "phase_id": setup_phase["id"],
+                    "title": setup_phase["title"],
+                    "proposed_title": "Project Setup",
+                    "description": "More specific title that explicitly communicates tooling, repository, and environment setup."
+                })
+            elif current_phase_list:
+                first_p = current_phase_list[0]
+                suggestions.append({
+                    "id": "sug-1",
+                    "type": "rename",
+                    "phase_id": first_p["id"],
+                    "title": first_p["title"],
+                    "proposed_title": f"{first_p['title']} & Architecture",
+                    "description": "Expand title to clarify initial architecture and scope setup."
+                })
+
+            # Look for backend or broad phase to split
+            backend_phase = next((p for p in current_phase_list if "backend" in p["title"].lower()), None)
+            if not backend_phase and len(current_phase_list) > 1:
+                backend_phase = next((p for p in current_phase_list if any(w in p["title"].lower() for w in ["api", "core", "implementation", "development"])), None)
+
+            if backend_phase:
+                suggestions.append({
+                    "id": "sug-2",
+                    "type": "split",
+                    "phase_id": backend_phase["id"],
+                    "title": backend_phase["title"],
+                    "description": f"The '{backend_phase['title']}' phase is too broad. Splitting into focused milestones ensures clearer tracking.",
+                    "split_phases": [
+                        {"title": "Database Design", "description": "Define data schemas, models, and initial migrations."},
+                        {"title": "Authentication", "description": "Implement user authentication, registration, and tokens."},
+                        {"title": "Product API", "description": "Build business domain endpoints and query operations."}
+                    ]
+                })
+
+            # Look for missing phase to add (e.g. Payment Integration or Testing & QA)
+            has_payment = any("payment" in p["title"].lower() for p in current_phase_list)
+            if not has_payment and any(w in lower_text for w in ["ecommerce", "e-commerce", "store", "shop", "checkout"]):
+                suggestions.append({
+                    "id": "sug-3",
+                    "type": "add",
+                    "proposed_title": "Payment Integration",
+                    "proposed_description": "Integrate payment processing gateway, webhook listeners, and transaction receipts.",
+                    "description": "Missing payment gateway milestone which is critical for an e-commerce workflow."
+                })
+            else:
+                has_qa = any(w in p["title"].lower() for p in current_phase_list for w in ["qa", "test", "verification"])
+                if not has_qa:
+                    suggestions.append({
+                        "id": "sug-3",
+                        "type": "add",
+                        "proposed_title": "Testing & Quality Assurance",
+                        "proposed_description": "Write automated unit and integration tests for critical user flows.",
+                        "description": "Add testing milestone to verify system stability before deployment."
+                    })
+                else:
+                    suggestions.append({
+                        "id": "sug-3",
+                        "type": "add",
+                        "proposed_title": "Monitoring & Production Readiness",
+                        "proposed_description": "Configure health check endpoints, logging, and performance metrics.",
+                        "description": "Ensure production observabilty and operational stability."
+                    })
+
+            data = {
+                "summary": "The current phases cover the main workflow, but some phases are too broad and important milestones can be structured more clearly.",
+                "suggestions": suggestions
+            }
+            return json.dumps(data)
+
         # Check if requested to generate phases
         if system_prompt and ("phases" in system_prompt.lower() or "phase" in system_prompt.lower()):
             if any(w in lower_text for w in ["e-commerce", "ecommerce", "store", "shop"]):
@@ -172,9 +257,25 @@ class MockAIProvider(AIProvider):
 
 
 class OpenAIProvider(AIProvider):
-    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4o-mini"):
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        model: str = "gpt-4o-mini",
+        base_url: Optional[str] = None,
+    ):
         self.api_key = api_key
         self.model = model
+        if base_url and base_url.strip():
+            url = base_url.strip()
+            if not url.endswith("/chat/completions"):
+                url = url.rstrip("/") + "/chat/completions"
+            self.endpoint = url
+        elif api_key and api_key.startswith("gsk_"):
+            self.endpoint = "https://api.groq.com/openai/v1/chat/completions"
+        elif api_key and api_key.startswith("sk-or-"):
+            self.endpoint = "https://openrouter.ai/api/v1/chat/completions"
+        else:
+            self.endpoint = "https://api.openai.com/v1/chat/completions"
 
     def is_configured(self) -> bool:
         return bool(self.api_key and self.api_key.strip())
@@ -183,7 +284,7 @@ class OpenAIProvider(AIProvider):
         if not self.is_configured():
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="OpenAI API key is missing. Please configure AI_API_KEY in settings.",
+                detail="AI service is not configured. Please configure an AI provider in backend settings.",
             )
 
         messages = []
@@ -199,11 +300,12 @@ class OpenAIProvider(AIProvider):
         }
 
         req = urllib.request.Request(
-            "https://api.openai.com/v1/chat/completions",
+            self.endpoint,
             data=json.dumps(payload).encode("utf-8"),
             headers={
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.api_key.strip()}",
+                "User-Agent": "TaskForge-AI/1.0",
             },
             method="POST",
         )
@@ -226,7 +328,7 @@ class OpenAIProvider(AIProvider):
                 )
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
-                detail="AI provider returned an error while processing the request.",
+                detail=f"AI provider returned an error: HTTP {e.code}",
             )
         except urllib.error.URLError as e:
             if isinstance(e.reason, TimeoutError):
@@ -238,30 +340,27 @@ class OpenAIProvider(AIProvider):
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail="Could not connect to AI provider. Please check network connectivity.",
             )
-        except Exception:
+        except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
-                detail="Unexpected error communicating with AI provider.",
+                detail=f"Unexpected error communicating with AI provider: {str(e)}",
             )
 
 
 def get_ai_provider() -> AIProvider:
     settings = get_settings()
-    provider_type = (settings.ai_provider or "none").strip().lower()
+    provider_type = (settings.ai_provider or "").strip().lower()
 
     if provider_type == "mock":
         return MockAIProvider()
-    if provider_type in ("openai", "custom"):
-        return OpenAIProvider(
-            api_key=settings.ai_api_key,
-            model=settings.ai_model or "gpt-4o-mini",
-        )
-    if provider_type == "none":
+
+    if provider_type in ("openai", "custom", "groq") or bool(settings.ai_api_key and settings.ai_api_key.strip()):
         if settings.ai_api_key and settings.ai_api_key.strip():
+            default_model = "openai/gpt-oss-120b" if settings.ai_api_key.startswith("gsk_") else "gpt-4o-mini"
             return OpenAIProvider(
                 api_key=settings.ai_api_key,
-                model=settings.ai_model or "gpt-4o-mini",
+                model=settings.ai_model or default_model,
+                base_url=settings.ai_base_url,
             )
-        return NoopProvider()
 
     return NoopProvider()

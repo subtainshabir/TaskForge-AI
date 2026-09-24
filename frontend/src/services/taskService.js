@@ -97,4 +97,17 @@ export const taskService = {
       body: JSON.stringify({ replace_existing: replaceExisting }),
     });
   },
+
+  refinePhases(taskId) {
+    return apiClient.request(`/tasks/${taskId}/phases/refine`, {
+      method: "POST",
+    });
+  },
+
+  applyPhaseRefinements(taskId, suggestions) {
+    return apiClient.request(`/tasks/${taskId}/phases/refine/apply`, {
+      method: "POST",
+      body: JSON.stringify({ suggestions }),
+    });
+  },
 };

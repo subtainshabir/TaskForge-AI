@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
+  ArrowRight,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -13,6 +14,7 @@ import {
   RefreshCw,
   Sparkles,
   Trash2,
+  X,
 } from "lucide-react";
 import Card from "../../Card/Card.jsx";
 import Button from "../../Button/Button.jsx";
@@ -29,6 +31,40 @@ const PHASE_STATUS_META = {
   completed: { label: "Completed", badgeVariant: "success", icon: CheckCircle2 },
 };
 
+function getSuggestionBadgeVariant(type) {
+  switch (type) {
+    case "add":
+      return "success";
+    case "remove":
+      return "danger";
+    case "split":
+      return "ai";
+    case "rename":
+      return "accent";
+    default:
+      return "neutral";
+  }
+}
+
+function formatSuggestionType(type) {
+  switch (type) {
+    case "add":
+      return "Add";
+    case "rename":
+      return "Rename";
+    case "split":
+      return "Split";
+    case "remove":
+      return "Remove";
+    case "reorder":
+      return "Reorder";
+    case "update_description":
+      return "Update Scope";
+    default:
+      return type;
+  }
+}
+
 function TaskPhases({ taskId, onPhaseChange }) {
   const [phases, setPhases] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -37,6 +73,13 @@ function TaskPhases({ taskId, onPhaseChange }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState("");
   const [isConfirmRegenOpen, setIsConfirmRegenOpen] = useState(false);
+
+  const [isReviewing, setIsReviewing] = useState(false);
+  const [refineError, setRefineError] = useState("");
+  const [refinementResult, setRefinementResult] = useState(null);
+  const [selectedSuggestionIds, setSelectedSuggestionIds] = useState(new Set());
+  const [isApplyingRefinements, setIsApplyingRefinements] = useState(false);
+  const [applyError, setApplyError] = useState("");
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPhase, setEditingPhase] = useState(null);
@@ -94,6 +137,90 @@ function TaskPhases({ taskId, onPhaseChange }) {
       );
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleReviewPhases = async () => {
+    if (isReviewing || isGenerating) return;
+    setIsReviewing(true);
+    setRefineError("");
+    setApplyError("");
+
+    try {
+      const data = await taskService.refinePhases(taskId);
+      setRefinementResult(data);
+      const suggestions = Array.isArray(data?.suggestions) ? data.suggestions : [];
+      const allIds = new Set(suggestions.map((s, idx) => s.id || `sug-${idx}`));
+      setSelectedSuggestionIds(allIds);
+    } catch (err) {
+      setRefineError(
+        apiErrorMessage(
+          err,
+          "Failed to review phases with AI. Please check your AI configuration and try again."
+        )
+      );
+    } finally {
+      setIsReviewing(false);
+    }
+  };
+
+  const handleToggleSelectSuggestion = (sugId) => {
+    setSelectedSuggestionIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(sugId)) {
+        next.delete(sugId);
+      } else {
+        next.add(sugId);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAllSuggestions = () => {
+    if (!refinementResult?.suggestions) return;
+    const allIds = new Set(refinementResult.suggestions.map((s, idx) => s.id || `sug-${idx}`));
+    setSelectedSuggestionIds(allIds);
+  };
+
+  const handleDeselectAllSuggestions = () => {
+    setSelectedSuggestionIds(new Set());
+  };
+
+  const handleCancelReview = () => {
+    setRefinementResult(null);
+    setSelectedSuggestionIds(new Set());
+    setRefineError("");
+    setApplyError("");
+  };
+
+  const handleApplyRefinements = async () => {
+    if (!refinementResult?.suggestions || isApplyingRefinements) return;
+
+    const selectedSuggestions = refinementResult.suggestions.filter((s, idx) => {
+      const sugId = s.id || `sug-${idx}`;
+      return selectedSuggestionIds.has(sugId);
+    });
+
+    if (selectedSuggestions.length === 0) return;
+
+    setIsApplyingRefinements(true);
+    setApplyError("");
+
+    try {
+      const updatedPhases = await taskService.applyPhaseRefinements(taskId, selectedSuggestions);
+      setPhases(Array.isArray(updatedPhases) ? updatedPhases : []);
+      setRefinementResult(null);
+      setSelectedSuggestionIds(new Set());
+      onPhaseChange?.();
+    } catch (err) {
+      setApplyError(
+        apiErrorMessage(
+          err,
+          "Failed to apply phase suggestions. Please verify the phase list and try again."
+        )
+      );
+    } finally {
+      setIsApplyingRefinements(false);
     }
   };
 
@@ -236,14 +363,38 @@ function TaskPhases({ taskId, onPhaseChange }) {
               <Button
                 variant="secondary"
                 size="sm"
+                onClick={handleReviewPhases}
+                disabled={isReviewing || isGenerating}
+                aria-label="Review phases with AI"
+              >
+                {isReviewing ? (
+                  <>
+                    <Spinner size="sm" label="Reviewing" />
+                    Reviewing phases...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={14} aria-hidden="true" />
+                    Review phases with AI
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={() => setIsConfirmRegenOpen(true)}
-                disabled={isGenerating}
+                disabled={isGenerating || isReviewing}
                 aria-label="Regenerate phases with AI"
               >
                 <RefreshCw size={14} aria-hidden="true" />
                 Regenerate phases
               </Button>
-              <Button variant="secondary" size="sm" onClick={openAddModal} disabled={isGenerating}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={openAddModal}
+                disabled={isGenerating || isReviewing}
+              >
                 <Plus size={14} aria-hidden="true" />
                 Add phase
               </Button>
@@ -253,7 +404,7 @@ function TaskPhases({ taskId, onPhaseChange }) {
               variant="primary"
               size="sm"
               onClick={() => handleGenerate(false)}
-              disabled={isGenerating}
+              disabled={isGenerating || isReviewing}
               aria-label="Generate phases with AI"
             >
               {isGenerating ? (
@@ -310,6 +461,220 @@ function TaskPhases({ taskId, onPhaseChange }) {
           <Button variant="secondary" size="sm" onClick={() => handleGenerate(totalPhases > 0)}>
             Try again
           </Button>
+        </div>
+      )}
+
+      {refineError && (
+        <div className="task-phases__error" role="alert">
+          <AlertCircle size={16} aria-hidden="true" />
+          <span>{refineError}</span>
+          <Button variant="secondary" size="sm" onClick={handleReviewPhases}>
+            Try again
+          </Button>
+        </div>
+      )}
+
+      {isReviewing && (
+        <div className="task-phases__loading-state" aria-live="polite">
+          <Spinner size="lg" label="Reviewing phases" />
+          <p className="task-phases__loading-text">
+            Reviewing current phases and analyzing potential improvements...
+          </p>
+        </div>
+      )}
+
+      {refinementResult && (
+        <div className="task-phases__refinement-panel" role="region" aria-label="AI Phase Review">
+          <div className="task-phases__refinement-header">
+            <div className="task-phases__refinement-title-group">
+              <Sparkles size={18} className="task-phases__refinement-sparkle" aria-hidden="true" />
+              <h3 className="task-phases__refinement-heading">AI Phase Review</h3>
+              <span className="task-phases__refinement-count-pill">
+                {refinementResult.suggestions.length} suggestion
+                {refinementResult.suggestions.length === 1 ? "" : "s"} found
+              </span>
+            </div>
+            <button
+              type="button"
+              className="task-phases__icon-btn"
+              onClick={handleCancelReview}
+              aria-label="Close review"
+              title="Close review"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          {refinementResult.summary && (
+            <div className="task-phases__refinement-summary">
+              <p className="task-phases__refinement-summary-text">{refinementResult.summary}</p>
+            </div>
+          )}
+
+          {applyError && (
+            <div className="task-phases__error" role="alert">
+              <AlertCircle size={16} aria-hidden="true" />
+              <span>{applyError}</span>
+            </div>
+          )}
+
+          <div className="task-phases__refinement-toolbar">
+            <span className="task-phases__refinement-selected-count">
+              {selectedSuggestionIds.size} of {refinementResult.suggestions.length} selected
+            </span>
+            <div className="task-phases__refinement-toolbar-actions">
+              <button
+                type="button"
+                className="task-phases__refinement-link-btn"
+                onClick={handleSelectAllSuggestions}
+                disabled={selectedSuggestionIds.size === refinementResult.suggestions.length}
+              >
+                Select all
+              </button>
+              <span className="task-phases__refinement-divider">•</span>
+              <button
+                type="button"
+                className="task-phases__refinement-link-btn"
+                onClick={handleDeselectAllSuggestions}
+                disabled={selectedSuggestionIds.size === 0}
+              >
+                Deselect all
+              </button>
+            </div>
+          </div>
+
+          <div className="task-phases__refinement-list">
+            {refinementResult.suggestions.map((sug, idx) => {
+              const sugId = sug.id || `sug-${idx}`;
+              const isChecked = selectedSuggestionIds.has(sugId);
+              return (
+                <div
+                  key={sugId}
+                  className={`task-phases__suggestion-item ${
+                    isChecked ? "task-phases__suggestion-item--selected" : ""
+                  }`}
+                  onClick={() => handleToggleSelectSuggestion(sugId)}
+                >
+                  <div className="task-phases__suggestion-checkbox-wrap">
+                    <input
+                      type="checkbox"
+                      id={`suggestion-${sugId}`}
+                      checked={isChecked}
+                      onChange={() => handleToggleSelectSuggestion(sugId)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="task-phases__suggestion-checkbox"
+                      aria-label={`Select suggestion ${sug.type} ${sug.proposed_title || sug.title}`}
+                    />
+                  </div>
+                  <div className="task-phases__suggestion-content">
+                    <div className="task-phases__suggestion-header-row">
+                      <Badge variant={getSuggestionBadgeVariant(sug.type)}>
+                        {formatSuggestionType(sug.type)}
+                      </Badge>
+                      {sug.type === "rename" && (
+                        <span className="task-phases__suggestion-title-line">
+                          Rename <strong>"{sug.title}"</strong>
+                        </span>
+                      )}
+                      {sug.type === "split" && (
+                        <span className="task-phases__suggestion-title-line">
+                          Split <strong>"{sug.title}"</strong>
+                        </span>
+                      )}
+                      {sug.type === "remove" && (
+                        <span className="task-phases__suggestion-title-line">
+                          Remove <strong>"{sug.title}"</strong>
+                        </span>
+                      )}
+                      {sug.type === "add" && (
+                        <span className="task-phases__suggestion-title-line">
+                          Add <strong>"{sug.proposed_title || sug.title}"</strong>
+                        </span>
+                      )}
+                      {sug.type === "reorder" && (
+                        <span className="task-phases__suggestion-title-line">
+                          Reorder <strong>"{sug.title}"</strong>
+                        </span>
+                      )}
+                      {sug.type === "update_description" && (
+                        <span className="task-phases__suggestion-title-line">
+                          Update scope for <strong>"{sug.title}"</strong>
+                        </span>
+                      )}
+                    </div>
+
+                    {sug.type === "rename" && (
+                      <div className="task-phases__suggestion-detail">
+                        <ArrowRight size={14} className="task-phases__suggestion-arrow" aria-hidden="true" />
+                        <span className="task-phases__suggestion-target-title">
+                          "{sug.proposed_title}"
+                        </span>
+                      </div>
+                    )}
+
+                    {sug.type === "split" && sug.split_phases && (
+                      <div className="task-phases__suggestion-split-list">
+                        {sug.split_phases.map((sp, spIdx) => (
+                          <div key={spIdx} className="task-phases__suggestion-split-item">
+                            <ArrowRight size={13} className="task-phases__suggestion-arrow" aria-hidden="true" />
+                            <span className="task-phases__suggestion-split-title">{sp.title}</span>
+                            {sp.description && (
+                              <span className="task-phases__suggestion-split-desc">
+                                — {sp.description}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {sug.type === "add" && sug.proposed_description && (
+                      <p className="task-phases__suggestion-desc">{sug.proposed_description}</p>
+                    )}
+
+                    {sug.type === "reorder" && (
+                      <div className="task-phases__suggestion-detail">
+                        <ArrowRight size={14} className="task-phases__suggestion-arrow" aria-hidden="true" />
+                        <span>Move to position {(sug.proposed_order ?? 0) + 1}</span>
+                      </div>
+                    )}
+
+                    {sug.type === "update_description" && sug.proposed_description && (
+                      <p className="task-phases__suggestion-desc">Scope: {sug.proposed_description}</p>
+                    )}
+
+                    {sug.description && (
+                      <p className="task-phases__suggestion-rationale">{sug.description}</p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="task-phases__refinement-actions">
+            <Button
+              variant="primary"
+              onClick={handleApplyRefinements}
+              disabled={isApplyingRefinements || selectedSuggestionIds.size === 0}
+            >
+              {isApplyingRefinements ? (
+                <>
+                  <Spinner size="sm" label="Applying changes" />
+                  Applying selected changes...
+                </>
+              ) : (
+                `Apply Selected (${selectedSuggestionIds.size})`
+              )}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={handleCancelReview}
+              disabled={isApplyingRefinements}
+            >
+              Cancel
+            </Button>
+          </div>
         </div>
       )}
 

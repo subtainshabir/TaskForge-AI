@@ -7,6 +7,11 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.ai.base import AIProvider
 from app.ai.phase_generation.service import generate_task_phases_ai
+from app.ai.phase_refinement.schemas import (
+    PhaseRefinementResponse,
+    PhaseRefinementSuggestion,
+)
+from app.ai.phase_refinement.service import refine_task_phases_ai
 from app.models.enums import TaskPriority, WorkStatus
 from app.models.phase import Phase
 from app.models.project import Project
@@ -633,4 +638,265 @@ def generate_task_phases(
         )
         .scalars()
         .all()
+    )
+
+
+def refine_task_phases(
+    db: Session,
+    user_id: int,
+    task_id: int,
+    provider: AIProvider,
+) -> PhaseRefinementResponse:
+    task = get_owned_task(db, user_id, task_id)
+    phases = get_task_phases(db, user_id, task_id)
+    if not phases:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Task has no phases to refine. Please add or generate phases first.",
+        )
+    return refine_task_phases_ai(task=task, phases=phases, provider=provider)
+
+
+def apply_phase_refinements(
+    db: Session,
+    user_id: int,
+    task_id: int,
+    suggestions: List[PhaseRefinementSuggestion],
+) -> List[Phase]:
+    task = get_owned_task(db, user_id, task_id)
+    if not suggestions:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No suggestions provided to apply.",
+        )
+
+    existing_phases = get_task_phases(db, user_id, task_id)
+    phase_map = {p.id: p for p in existing_phases}
+
+    allowed_types = {"add", "rename", "update_description", "remove", "reorder", "split"}
+    targeted_phase_operations = {}
+
+    for sug in suggestions:
+        if sug.type not in allowed_types:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unsupported suggestion type '{sug.type}'.",
+            )
+
+        if sug.type in ("rename", "update_description", "remove", "reorder", "split"):
+            if sug.phase_id is None or sug.phase_id not in phase_map:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Phase #{sug.phase_id} does not belong to this task or does not exist.",
+                )
+            prev_op = targeted_phase_operations.get(sug.phase_id)
+            if prev_op and (prev_op in ("remove", "split") or sug.type in ("remove", "split")):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Conflicting suggestions detected for phase #{sug.phase_id}.",
+                )
+            targeted_phase_operations[sug.phase_id] = sug.type
+
+        if sug.type == "add":
+            title = (sug.proposed_title or sug.title or "").strip()
+            if not title:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Title is required for adding a phase.",
+                )
+            if len(title) > 255:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Phase title cannot exceed 255 characters.",
+                )
+
+        elif sug.type == "rename":
+            title = (sug.proposed_title or sug.title or "").strip()
+            if not title:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Proposed title is required for renaming a phase.",
+                )
+            if len(title) > 255:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Phase title cannot exceed 255 characters.",
+                )
+
+        elif sug.type == "split":
+            if not sug.split_phases:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Split suggestion must specify at least one replacement phase.",
+                )
+            for item in sug.split_phases:
+                t = (item.title or "").strip()
+                if not t:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="All split phases must have a non-empty title.",
+                    )
+                if len(t) > 255:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Phase title cannot exceed 255 characters.",
+                    )
+
+    deleted_ids = set()
+    applied_count = 0
+
+    for sug in suggestions:
+        if sug.type == "remove":
+            phase = phase_map.get(sug.phase_id)
+            if phase and phase.id not in deleted_ids:
+                old_title = phase.title
+                db.delete(phase)
+                deleted_ids.add(phase.id)
+                applied_count += 1
+                record_activity(
+                    db=db,
+                    task_id=task.id,
+                    user_id=user_id,
+                    activity_type="phase_deleted",
+                    description=f'Phase removed: "{old_title}"',
+                    metadata={"phase_id": sug.phase_id, "phase_title": old_title},
+                )
+
+        elif sug.type == "rename":
+            phase = phase_map.get(sug.phase_id)
+            if phase and phase.id not in deleted_ids:
+                old_title = phase.title
+                new_title = (sug.proposed_title or sug.title or "").strip()
+                phase.title = new_title
+                applied_count += 1
+                record_activity(
+                    db=db,
+                    task_id=task.id,
+                    user_id=user_id,
+                    activity_type="phase_renamed",
+                    description=f'Phase renamed: "{old_title}" → "{new_title}"',
+                    metadata={"phase_id": phase.id, "old_title": old_title, "new_title": new_title},
+                )
+
+        elif sug.type == "update_description":
+            phase = phase_map.get(sug.phase_id)
+            if phase and phase.id not in deleted_ids:
+                new_desc = (sug.proposed_description or sug.description or "").strip() or None
+                phase.description = new_desc
+                applied_count += 1
+                record_activity(
+                    db=db,
+                    task_id=task.id,
+                    user_id=user_id,
+                    activity_type="phase_updated",
+                    description=f'Phase description updated: "{phase.title}"',
+                    metadata={"phase_id": phase.id, "phase_title": phase.title},
+                )
+
+        elif sug.type == "reorder":
+            phase = phase_map.get(sug.phase_id)
+            if phase and phase.id not in deleted_ids:
+                target_order = max(0, sug.proposed_order if sug.proposed_order is not None else 0)
+                phase.order_index = target_order
+                applied_count += 1
+                record_activity(
+                    db=db,
+                    task_id=task.id,
+                    user_id=user_id,
+                    activity_type="phase_reordered",
+                    description=f'Phase reordered: "{phase.title}"',
+                    metadata={"phase_id": phase.id, "phase_title": phase.title, "new_order": target_order},
+                )
+
+        elif sug.type == "split":
+            phase = phase_map.get(sug.phase_id)
+            if phase and phase.id not in deleted_ids:
+                orig_title = phase.title
+                orig_order = phase.order_index
+                db.delete(phase)
+                deleted_ids.add(phase.id)
+
+                for idx, sp in enumerate(sug.split_phases):
+                    new_phase = Phase(
+                        task_id=task.id,
+                        title=sp.title.strip(),
+                        description=sp.description.strip() if sp.description and sp.description.strip() else None,
+                        order_index=orig_order + idx,
+                        status=WorkStatus.TODO,
+                        progress=0,
+                    )
+                    db.add(new_phase)
+                    record_activity(
+                        db=db,
+                        task_id=task.id,
+                        user_id=user_id,
+                        activity_type="phase_created",
+                        description=f'Phase added: "{new_phase.title}"',
+                        metadata={"phase_title": new_phase.title, "split_from": orig_title},
+                    )
+
+                applied_count += 1
+                record_activity(
+                    db=db,
+                    task_id=task.id,
+                    user_id=user_id,
+                    activity_type="phase_split",
+                    description=f'Phase split: "{orig_title}" into {len(sug.split_phases)} phases',
+                    metadata={"phase_id": sug.phase_id, "orig_title": orig_title, "count": len(sug.split_phases)},
+                )
+
+        elif sug.type == "add":
+            title = (sug.proposed_title or sug.title or "").strip()
+            desc = (sug.proposed_description or sug.description or "").strip() or None
+            order_idx = sug.proposed_order if sug.proposed_order is not None else 9999
+            new_phase = Phase(
+                task_id=task.id,
+                title=title,
+                description=desc,
+                order_index=order_idx,
+                status=WorkStatus.TODO,
+                progress=0,
+            )
+            db.add(new_phase)
+            applied_count += 1
+            record_activity(
+                db=db,
+                task_id=task.id,
+                user_id=user_id,
+                activity_type="phase_created",
+                description=f'Phase added: "{title}"',
+                metadata={"phase_title": title},
+            )
+
+    db.flush()
+    remaining_phases = list(
+        db.execute(
+            select(Phase).where(Phase.task_id == task.id)
+        ).scalars().all()
+    )
+    remaining_phases.sort(key=lambda p: (p.order_index, p.id))
+    for idx, p in enumerate(remaining_phases):
+        p.order_index = idx
+
+    record_activity(
+        db=db,
+        task_id=task.id,
+        user_id=user_id,
+        activity_type="ai_phase_refinement_applied",
+        description="AI phase refinement applied",
+        metadata={
+            "applied_count": applied_count,
+            "suggestions_count": len(suggestions),
+        },
+    )
+
+    sync_task_progress(db, task)
+    db.commit()
+
+    return list(
+        db.execute(
+            select(Phase)
+            .where(Phase.task_id == task.id)
+            .order_by(Phase.order_index.asc(), Phase.id.asc())
+        ).scalars().all()
     )

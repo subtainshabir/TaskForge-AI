@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.ai.base import AIProvider
 from app.ai.factory import get_ai_provider
+from app.ai.phase_refinement.schemas import ApplyRefinementsRequest, PhaseRefinementResponse
 from app.ai.task_understanding.schemas import TaskAnalysisResponse
 from app.ai.task_understanding.service import analyze_task_understanding
 from app.auth.dependencies import get_current_user
@@ -220,4 +221,40 @@ def generate_phases(
     replace_existing = payload.replace_existing if payload else False
     return service.generate_task_phases(
         db, current_user.id, task_id, ai_provider, replace_existing=replace_existing
+    )
+
+
+@router.post("/tasks/{task_id}/phases/refine", response_model=PhaseRefinementResponse)
+def refine_phases(
+    task_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    ai_provider: AIProvider = Depends(get_ai_provider),
+) -> PhaseRefinementResponse:
+    return service.refine_task_phases(
+        db=db, user_id=current_user.id, task_id=task_id, provider=ai_provider
+    )
+
+
+@router.post("/tasks/{task_id}/phases/refine/apply", response_model=List[PhaseResponse])
+def apply_refinements(
+    task_id: int,
+    payload: ApplyRefinementsRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> List[PhaseResponse]:
+    return service.apply_phase_refinements(
+        db=db, user_id=current_user.id, task_id=task_id, suggestions=payload.suggestions
+    )
+
+
+@router.post("/tasks/{task_id}/phases/apply-refinements", response_model=List[PhaseResponse])
+def apply_refinements_alias(
+    task_id: int,
+    payload: ApplyRefinementsRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> List[PhaseResponse]:
+    return service.apply_phase_refinements(
+        db=db, user_id=current_user.id, task_id=task_id, suggestions=payload.suggestions
     )

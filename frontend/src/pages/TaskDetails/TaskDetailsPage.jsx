@@ -56,6 +56,16 @@ function TaskDetailsPage() {
 
   const triggerActivityRefresh = () => setActivityRefreshKey((k) => k + 1);
 
+  const handlePhaseChange = useCallback(async () => {
+    triggerActivityRefresh();
+    try {
+      const updated = await taskService.get(taskId);
+      setTask(updated);
+    } catch {
+      // ignore
+    }
+  }, [taskId]);
+
   const handleBlockedChange = useCallback((isBlocked) => {
     setTask((prev) => {
       if (!prev || prev.is_blocked === isBlocked) return prev;
@@ -183,7 +193,7 @@ function TaskDetailsPage() {
         onDependencyChange={triggerActivityRefresh}
       />
 
-      <TaskPhases taskId={taskId} onPhaseChange={triggerActivityRefresh} />
+      <TaskPhases taskId={taskId} onPhaseChange={handlePhaseChange} />
 
       <TaskAIAnalysis taskId={taskId} />
 

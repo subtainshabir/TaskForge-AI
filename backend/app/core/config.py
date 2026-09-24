@@ -1,11 +1,23 @@
+import os
 from functools import lru_cache
+from pathlib import Path
 from typing import List, Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+BACKEND_DIR = BASE_DIR.parent
+
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=[
+            str(BACKEND_DIR / ".env"),
+            str(BASE_DIR / ".env"),
+            ".env",
+        ],
+        extra="ignore",
+    )
 
     # App
     app_name: str = "TaskForge AI"
@@ -23,6 +35,7 @@ class Settings(BaseSettings):
     ai_provider: str = "none"
     ai_api_key: Optional[str] = None
     ai_model: Optional[str] = None
+    ai_base_url: Optional[str] = None
 
     # Auth / JWT
     jwt_secret_key: str = "dev-secret-change-in-production"
