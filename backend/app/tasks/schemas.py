@@ -29,6 +29,7 @@ class TaskUpdate(BaseModel):
     status: Optional[TaskStatusLiteral] = None
     priority: Optional[TaskPriorityLiteral] = None
     deadline: Optional[datetime] = None
+    source: Optional[str] = None
 
     @field_validator("title")
     @classmethod

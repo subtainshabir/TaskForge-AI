@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 from app.ai.base import AIProvider
 from app.ai.factory import get_ai_provider
 from app.ai.phase_refinement.schemas import ApplyRefinementsRequest, PhaseRefinementResponse
+from app.ai.task_priority.schemas import TaskPriorityAnalysisResponse
+from app.ai.task_quality.schemas import TaskQualityResponse
 from app.ai.task_understanding.schemas import TaskAnalysisResponse
 from app.ai.task_understanding.service import analyze_task_understanding
 from app.auth.dependencies import get_current_user
@@ -161,6 +163,36 @@ def analyze_task_ai(
 ) -> TaskAnalysisResponse:
     task = service.get_owned_task(db, current_user.id, task_id)
     return analyze_task_understanding(task, ai_provider)
+
+
+@router.post(
+    "/tasks/{task_id}/ai/priority",
+    response_model=TaskPriorityAnalysisResponse,
+)
+def analyze_task_priority_ai(
+    task_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    ai_provider: AIProvider = Depends(get_ai_provider),
+) -> TaskPriorityAnalysisResponse:
+    return service.analyze_task_priority(
+        db=db, user_id=current_user.id, task_id=task_id, provider=ai_provider
+    )
+
+
+@router.post(
+    "/tasks/{task_id}/ai/quality",
+    response_model=TaskQualityResponse,
+)
+def analyze_task_quality_endpoint(
+    task_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    ai_provider: AIProvider = Depends(get_ai_provider),
+) -> TaskQualityResponse:
+    return service.analyze_task_quality(
+        db=db, user_id=current_user.id, task_id=task_id, provider=ai_provider
+    )
 
 
 @router.get("/tasks/{task_id}/phases", response_model=List[PhaseResponse])

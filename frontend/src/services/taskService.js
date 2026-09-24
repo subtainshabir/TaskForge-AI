@@ -67,6 +67,18 @@ export const taskService = {
     });
   },
 
+  analyzePriorityWithAI(taskId) {
+    return apiClient.request(`/tasks/${taskId}/ai/priority`, {
+      method: "POST",
+    });
+  },
+
+  analyzeQualityWithAI(taskId) {
+    return apiClient.request(`/tasks/${taskId}/ai/quality`, {
+      method: "POST",
+    });
+  },
+
   getPhases(taskId) {
     return apiClient.request(`/tasks/${taskId}/phases`);
   },

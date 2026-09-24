@@ -40,6 +40,131 @@ class MockAIProvider(AIProvider):
 
         lower_text = f"{title} {description}".lower()
 
+        # Check if requested to evaluate task quality
+        if system_prompt and ("quality" in system_prompt.lower() or "actionable, and complete" in system_prompt.lower()):
+            is_vague = len(title.strip()) < 20 and (not description or len(description.strip()) < 30)
+
+            if is_vague:
+                overall_score = 58
+                summary = "The task description is too vague and lacks a specific expected outcome."
+                dimensions = [
+                    {"name": "clarity", "score": 60, "explanation": "The general intent is understandable but lacks scope."},
+                    {"name": "specificity", "score": 50, "explanation": "No specific problem, element, or component is identified."},
+                    {"name": "actionability", "score": 60, "explanation": "Work cannot easily proceed without clarification."},
+                    {"name": "completeness", "score": 55, "explanation": "Missing acceptance criteria and definition of done."},
+                    {"name": "context", "score": 65, "explanation": "Basic project reference is known."},
+                ]
+                issues = [
+                    {"title": "The task description is too vague", "description": "The description does not explain the exact problem or requirements.", "severity": "high"},
+                    {"title": "No specific problem is identified", "description": "Lacks specific component names, error messages, or reproduction steps.", "severity": "medium"},
+                    {"title": "Expected result is undefined", "description": "No measurable definition of success or done state.", "severity": "medium"},
+                ]
+                suggestions = [
+                    {"title": "Describe the exact problem", "description": "Specify the affected pages, components, or user scenarios."},
+                    {"title": "Specify the expected result", "description": "Describe what should be different after this task is completed."},
+                    {"title": "Add acceptance criteria", "description": "Include a brief checklist of required outcomes."},
+                ]
+            else:
+                overall_score = 85
+                summary = "The task has clear objectives, well-defined scope, and actionable implementation details."
+                dimensions = [
+                    {"name": "clarity", "score": 90, "explanation": "The main objective is clear and unambiguous."},
+                    {"name": "specificity", "score": 85, "explanation": "Identifies targeted components and deliverables."},
+                    {"name": "actionability", "score": 85, "explanation": "Implementation can begin immediately."},
+                    {"name": "completeness", "score": 80, "explanation": "Sufficient detail provided for successful execution."},
+                    {"name": "context", "score": 85, "explanation": "Strong architectural and operational context."},
+                ]
+                issues = [
+                    {"title": "Edge cases could be clarified", "description": "Specific failure modes or validation bounds could be documented.", "severity": "low"},
+                ]
+                suggestions = [
+                    {"title": "Add verification checklist", "description": "List automated test requirements and expected edge case handling."},
+                ]
+
+            return json.dumps({
+                "overall_score": overall_score,
+                "summary": summary,
+                "dimensions": dimensions,
+                "issues": issues,
+                "suggestions": suggestions,
+            })
+
+        # Check if requested to analyze task priority
+        if system_prompt and "priority" in system_prompt.lower():
+            current_priority = priority or "medium"
+            is_overdue = False
+            has_deadline = False
+            blocks_tasks = False
+            is_blocked = False
+
+            for line in prompt.splitlines():
+                if line.startswith("Current Priority:"):
+                    current_priority = line.replace("Current Priority:", "").strip().lower()
+                elif line.startswith("Deadline:"):
+                    if "None" not in line:
+                        has_deadline = True
+                        if "OVERDUE" in line:
+                            is_overdue = True
+                elif line.startswith("Downstream Impact:"):
+                    blocks_tasks = True
+                elif line.startswith("Blocked Status:"):
+                    is_blocked = True
+
+            factors = []
+            if any(w in lower_text for w in ["payment", "checkout", "outage", "security", "vulnerability", "crash"]):
+                recommended = "urgent" if (is_overdue or blocks_tasks) else "high"
+                factors.append("Critical payment or checkout transaction path affected")
+                if blocks_tasks:
+                    factors.append("Task blocks dependent work")
+                if is_overdue:
+                    factors.append("Deadline is overdue")
+                elif has_deadline:
+                    factors.append("Deadline is approaching")
+                reasoning = "The task has high business impact and critical customer-facing exposure."
+                confidence = 0.92
+            elif is_overdue:
+                recommended = "high" if current_priority != "urgent" else "urgent"
+                factors.append("Task deadline has passed")
+                if blocks_tasks:
+                    factors.append("Task blocks dependent work")
+                reasoning = "The task has exceeded its scheduled deadline and requires priority attention."
+                confidence = 0.89
+            elif blocks_tasks:
+                recommended = "high"
+                factors.append("Task blocks downstream deliverables")
+                if has_deadline:
+                    factors.append("Deadline is approaching")
+                reasoning = "The task has a near deadline and blocks other work."
+                confidence = 0.88
+            elif any(w in lower_text for w in ["typo", "cosmetic", "cleanup", "minor", "nice to have"]):
+                recommended = "low"
+                factors.append("Minor enhancement with minimal operational impact")
+                factors.append("No blocking dependencies")
+                reasoning = "This item is low risk and does not impede other deliverables."
+                confidence = 0.91
+            elif current_priority in ("high", "urgent") and not has_deadline and not blocks_tasks:
+                recommended = "medium"
+                factors.append("Standard deliverable without blocking dependencies")
+                factors.append("No hard deadline specified")
+                reasoning = "Task scope is manageable and lacks urgent blocking bottlenecks."
+                confidence = 0.84
+            else:
+                recommended = current_priority
+                factors.append(f"Current priority of {current_priority} is consistent with task scope")
+                if has_deadline:
+                    factors.append("Deadline aligns with normal schedule")
+                reasoning = f"The current {current_priority} priority appears appropriate for the defined scope."
+                confidence = 0.85
+
+            return json.dumps({
+                "current_priority": current_priority,
+                "recommended_priority": recommended,
+                "confidence": confidence,
+                "reasoning": reasoning,
+                "factors": factors,
+                "is_inconsistent": recommended != current_priority,
+            })
+
         # Check if requested to refine/review existing phases
         if system_prompt and any(w in system_prompt.lower() for w in ["refinement", "refine", "review your existing", "review a user's"]):
             current_phase_list = []

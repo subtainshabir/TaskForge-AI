@@ -16,6 +16,8 @@ import DeleteTaskDialog from "../../components/tasks/DeleteTaskDialog/DeleteTask
 import TaskDependencies from "../../components/tasks/TaskDependencies/TaskDependencies.jsx";
 import TaskPhases from "../../components/tasks/TaskPhases/TaskPhases.jsx";
 import TaskAIAnalysis from "../../components/tasks/TaskAIAnalysis/TaskAIAnalysis.jsx";
+import TaskAIPriority from "../../components/tasks/TaskAIPriority/TaskAIPriority.jsx";
+import TaskAIQuality from "../../components/tasks/TaskAIQuality/TaskAIQuality.jsx";
 import TaskActivity from "../../components/tasks/TaskActivity/TaskActivity.jsx";
 import { taskService } from "../../services/taskService.js";
 import { projectService } from "../../services/projectService.js";
@@ -186,6 +188,14 @@ function TaskDetailsPage() {
         <TaskMetadata task={task} />
       </Card>
 
+      <TaskAIPriority
+        task={task}
+        onPriorityApplied={(updated) => {
+          setTask(updated);
+          triggerActivityRefresh();
+        }}
+      />
+
       <TaskDependencies
         taskId={taskId}
         projectId={projectId}
@@ -196,6 +206,8 @@ function TaskDetailsPage() {
       <TaskPhases taskId={taskId} onPhaseChange={handlePhaseChange} />
 
       <TaskAIAnalysis taskId={taskId} />
+
+      <TaskAIQuality task={task} onEditTask={() => setIsEditOpen(true)} />
 
       <TaskActivity taskId={taskId} refreshKey={activityRefreshKey} />
 

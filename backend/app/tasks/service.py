@@ -12,6 +12,10 @@ from app.ai.phase_refinement.schemas import (
     PhaseRefinementSuggestion,
 )
 from app.ai.phase_refinement.service import refine_task_phases_ai
+from app.ai.task_priority.schemas import TaskPriorityAnalysisResponse
+from app.ai.task_priority.service import analyze_task_priority_ai
+from app.ai.task_quality.schemas import TaskQualityResponse
+from app.ai.task_quality.service import analyze_task_quality_ai
 from app.models.enums import TaskPriority, WorkStatus
 from app.models.phase import Phase
 from app.models.project import Project
@@ -188,13 +192,16 @@ def update_task(
             old_pri = task.priority.value
             new_pri = new_priority.value
             task.priority = new_priority
+            meta = {"old_priority": old_pri, "new_priority": new_pri}
+            if getattr(payload, "source", None):
+                meta["source"] = payload.source
             record_activity(
                 db=db,
                 task_id=task.id,
                 user_id=actor_id,
                 activity_type="priority_changed",
                 description=f"Priority changed: {old_pri.capitalize()} → {new_pri.capitalize()}",
-                metadata={"old_priority": old_pri, "new_priority": new_pri},
+                metadata=meta,
             )
 
     if "deadline" in provided and payload.deadline != task.deadline:
@@ -900,3 +907,54 @@ def apply_phase_refinements(
             .order_by(Phase.order_index.asc(), Phase.id.asc())
         ).scalars().all()
     )
+
+
+def analyze_task_priority(
+    db: Session,
+    user_id: int,
+    task_id: int,
+    provider: AIProvider,
+) -> TaskPriorityAnalysisResponse:
+    task = db.execute(
+        select(Task)
+        .join(Project, Task.project_id == Project.id)
+        .where(Task.id == task_id, Project.user_id == user_id)
+        .options(
+            selectinload(Task.project),
+            selectinload(Task.dependencies).selectinload(TaskDependency.depends_on_task),
+            selectinload(Task.dependents).selectinload(TaskDependency.task),
+            selectinload(Task.phases),
+        )
+    ).scalar_one_or_none()
+    if task is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+
+    if task.status == WorkStatus.COMPLETED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Completed tasks do not require priority analysis.",
+        )
+
+    return analyze_task_priority_ai(task=task, provider=provider)
+
+def analyze_task_quality(
+    db: Session,
+    user_id: int,
+    task_id: int,
+    provider: AIProvider,
+) -> TaskQualityResponse:
+    task = db.execute(
+        select(Task)
+        .join(Project, Task.project_id == Project.id)
+        .where(Task.id == task_id, Project.user_id == user_id)
+        .options(
+            selectinload(Task.project),
+            selectinload(Task.dependencies).selectinload(TaskDependency.depends_on_task),
+            selectinload(Task.dependents).selectinload(TaskDependency.task),
+            selectinload(Task.phases).selectinload(Phase.subtasks),
+        )
+    ).scalar_one_or_none()
+    if task is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Task not found')
+
+    return analyze_task_quality_ai(task=task, provider=provider)

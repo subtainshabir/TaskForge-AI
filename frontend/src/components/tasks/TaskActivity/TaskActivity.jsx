@@ -122,6 +122,11 @@ function TaskActivity({ taskId, refreshKey = 0 }) {
                           {act.metadata.old_priority} → {act.metadata.new_priority}
                         </span>
                       )}
+                      {act.metadata.source === "ai_priority_recommendation" && (
+                        <span className="task-activity__meta-tag task-activity__meta-tag--ai">
+                          AI Recommendation
+                        </span>
+                      )}
                       {act.metadata.dependency_task_title && (
                         <span className="task-activity__meta-tag">
                           Task: {act.metadata.dependency_task_title}
