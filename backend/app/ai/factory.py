@@ -40,6 +40,90 @@ class MockAIProvider(AIProvider):
 
         lower_text = f"{title} {description}".lower()
 
+        # Check if requested to generate AI progress insights
+        if system_prompt and any(w in system_prompt.lower() for w in ["progress analysis engine", "progress insight", "progress data to provide useful"]):
+            if "[FORCE_INVALID_PROGRESS_INSIGHTS]" in prompt:
+                return "Not valid JSON"
+            if "[FORCE_EMPTY_INSIGHTS]" in prompt:
+                return json.dumps({"summary": "Not enough task data for meaningful AI insights yet.", "insights": []})
+
+            total_tasks = 0
+            completed_tasks = 0
+            in_progress_tasks = 0
+            todo_tasks = 0
+            avg_progress = 0
+
+            for line in prompt.splitlines():
+                if "- Total Tasks:" in line:
+                    try:
+                        total_tasks = int(line.split("- Total Tasks:")[1].strip())
+                    except ValueError:
+                        pass
+                elif "- Completed Tasks:" in line:
+                    try:
+                        completed_tasks = int(line.split("- Completed Tasks:")[1].strip())
+                    except ValueError:
+                        pass
+                elif "- In-Progress Tasks:" in line:
+                    try:
+                        in_progress_tasks = int(line.split("- In-Progress Tasks:")[1].strip())
+                    except ValueError:
+                        pass
+                elif "- Todo (Not Started) Tasks:" in line:
+                    try:
+                        todo_tasks = int(line.split("- Todo (Not Started) Tasks:")[1].strip())
+                    except ValueError:
+                        pass
+                elif "- Average Task Progress:" in line:
+                    try:
+                        val = line.split("- Average Task Progress:")[1].replace("%", "").strip()
+                        avg_progress = int(val)
+                    except ValueError:
+                        pass
+
+            if total_tasks == 0:
+                return json.dumps({
+                    "summary": "Not enough task data for meaningful AI insights yet.",
+                    "insights": [],
+                })
+
+            insights = []
+            if completed_tasks > 0:
+                insights.append({
+                    "type": "positive",
+                    "title": f"{completed_tasks} tasks have reached 100% completion",
+                    "description": f"Currently, {completed_tasks} of {total_tasks} workspace tasks have reached full completion.",
+                    "severity": "info",
+                })
+
+            if "Active tasks with low progress" in prompt:
+                insights.append({
+                    "type": "bottleneck",
+                    "title": "Active tasks have limited phase completion",
+                    "description": "Several in-progress tasks currently remain below 25% phase progress.",
+                    "severity": "medium",
+                })
+
+            if "Incomplete tasks with deadlines" in prompt:
+                insights.append({
+                    "type": "deadline",
+                    "title": "Tasks with approaching deadlines need attention",
+                    "description": "Incomplete tasks with registered deadlines are currently active.",
+                    "severity": "high",
+                })
+
+            insights.append({
+                "type": "progress",
+                "title": f"Workspace average progress stands at {avg_progress}%",
+                "description": f"Current data reflects {in_progress_tasks} active and {todo_tasks} unstarted tasks across projects.",
+                "severity": "info",
+            })
+
+            return json.dumps({
+                "summary": f"Your workspace currently has {total_tasks} tasks with an average progress of {avg_progress}%.",
+                "insights": insights,
+            })
+
         # Check if requested to regenerate task
         if system_prompt and any(w in system_prompt.lower() for w in ["regenerat", "regeneration principles", "improve an existing task"]):
             if "[FORCE_INVALID_REGEN_RESPONSE]" in prompt:

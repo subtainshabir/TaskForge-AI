@@ -16,6 +16,8 @@ import TaskForm from "../../components/tasks/TaskForm/TaskForm.jsx";
 import DeleteTaskDialog from "../../components/tasks/DeleteTaskDialog/DeleteTaskDialog.jsx";
 import { projectService } from "../../services/projectService.js";
 import { taskService } from "../../services/taskService.js";
+import { analyticsService } from "../../services/analyticsService.js";
+import ProgressAnalytics from "../../components/analytics/ProgressAnalytics/ProgressAnalytics.jsx";
 import { apiErrorMessage } from "../../utils/apiErrorMessage.js";
 import "./DashBoard.css";
 
@@ -25,6 +27,10 @@ function Dashboard() {
   const [tasks, setTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
+  const [analyticsError, setAnalyticsError] = useState("");
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
@@ -39,20 +45,39 @@ function Dashboard() {
   const [deleteError, setDeleteError] = useState("");
   const [quickUpdateError, setQuickUpdateError] = useState("");
 
+  const loadAnalytics = useCallback(async () => {
+    setAnalyticsLoading(true);
+    setAnalyticsError("");
+    try {
+      const data = await analyticsService.getProgress();
+      setAnalyticsData(data);
+    } catch (err) {
+      setAnalyticsError(apiErrorMessage(err, "Failed to load progress analytics."));
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }, []);
+
   const loadData = useCallback(async () => {
     setIsLoading(true);
     setError("");
     try {
-      const [projectsData, tasksData] = await Promise.all([
+      const [projectsData, tasksData, analyticsRes] = await Promise.all([
         projectService.list(),
         taskService.listAll(),
+        analyticsService.getProgress().catch(() => null),
       ]);
       setProjects(projectsData || []);
       setTasks(tasksData || []);
+      if (analyticsRes) {
+        setAnalyticsData(analyticsRes);
+        setAnalyticsError("");
+      }
     } catch (err) {
       setError(apiErrorMessage(err, "Failed to load dashboard data."));
     } finally {
       setIsLoading(false);
+      setAnalyticsLoading(false);
     }
   }, []);
 
@@ -123,6 +148,7 @@ function Dashboard() {
       const created = await projectService.create(payload);
       setProjects((prev) => [created, ...prev]);
       setIsCreateOpen(false);
+      loadAnalytics();
     } catch (err) {
       setFormError(apiErrorMessage(err));
     } finally {
@@ -138,6 +164,7 @@ function Dashboard() {
       const updated = await projectService.update(editingProject.id, payload);
       setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
       setEditingProject(null);
+      loadAnalytics();
     } catch (err) {
       setFormError(apiErrorMessage(err, "This project no longer exists."));
     } finally {
@@ -154,6 +181,7 @@ function Dashboard() {
       setProjects((prev) => prev.filter((p) => p.id !== deletingProject.id));
       setTasks((prev) => prev.filter((t) => t.project_id !== deletingProject.id));
       setDeletingProject(null);
+      loadAnalytics();
     } catch (err) {
       setDeleteError(apiErrorMessage(err, "This project no longer exists."));
     } finally {
@@ -169,6 +197,7 @@ function Dashboard() {
       const updated = await taskService.update(editingTask.id, payload);
       setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
       setEditingTask(null);
+      loadAnalytics();
     } catch (err) {
       setFormError(apiErrorMessage(err, "This task no longer exists."));
     } finally {
@@ -184,6 +213,7 @@ function Dashboard() {
       await taskService.remove(deletingTask.id);
       setTasks((prev) => prev.filter((t) => t.id !== deletingTask.id));
       setDeletingTask(null);
+      loadAnalytics();
     } catch (err) {
       setDeleteError(apiErrorMessage(err, "This task no longer exists."));
     } finally {
@@ -200,6 +230,7 @@ function Dashboard() {
     try {
       const updated = await taskService.update(task.id, { status: nextStatus });
       setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+      loadAnalytics();
     } catch (err) {
       setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status: previous } : t)));
       setQuickUpdateError(apiErrorMessage(err, "Unable to update task status. Please try again."));
@@ -299,6 +330,15 @@ function Dashboard() {
         )}
         <Badge variant="success">Completed: {statusCounts.completed}</Badge>
       </div>
+
+      {projects.length > 0 && (
+        <ProgressAnalytics
+          data={analyticsData}
+          isLoading={analyticsLoading}
+          error={analyticsError}
+          onRefresh={loadAnalytics}
+        />
+      )}
 
       {isLoading && (
         <div style={{ display: "flex", justifyContent: "center", padding: "var(--space-8) 0" }}>

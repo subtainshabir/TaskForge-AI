@@ -22,6 +22,7 @@ import DeleteProjectDialog from "../../components/projects/DeleteProjectDialog/D
 import ProjectTasksPanel from "../../components/tasks/ProjectTasksPanel/ProjectTasksPanel.jsx";
 import TaskAISuggestions from "../../components/tasks/TaskAISuggestions/TaskAISuggestions.jsx";
 import { projectService } from "../../services/projectService.js";
+import { analyticsService } from "../../services/analyticsService.js";
 import { apiErrorMessage } from "../../utils/apiErrorMessage.js";
 import { formatAbsoluteDate } from "../../utils/date.js";
 import { STATUS_META } from "../../utils/projectStatus.js";
@@ -49,6 +50,7 @@ function ProjectDetailsPage({ initialSection }) {
     }
   }, [location.pathname]);
   const [project, setProject] = useState(null);
+  const [projectAnalytics, setProjectAnalytics] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -63,8 +65,12 @@ function ProjectDetailsPage({ initialSection }) {
     setIsLoading(true);
     setError("");
     try {
-      const data = await projectService.get(projectId);
+      const [data, analyticsData] = await Promise.all([
+        projectService.get(projectId),
+        analyticsService.getProgress({ project_id: projectId }).catch(() => null),
+      ]);
       setProject(data);
+      setProjectAnalytics(analyticsData);
     } catch (err) {
       setError(apiErrorMessage(err, "This project doesn't exist or you don't have access to it."));
     } finally {
@@ -197,6 +203,34 @@ function ProjectDetailsPage({ initialSection }) {
                 {label}
               </Badge>
             </div>
+            {projectAnalytics?.overview && (
+              <>
+                <div className="project-details__meta-row">
+                  <span className="project-details__meta-label">Project progress</span>
+                  <span className="project-details__meta-value project-details__meta-value--progress">
+                    {projectAnalytics.overview.average_progress}%
+                  </span>
+                </div>
+                <div className="project-details__meta-row">
+                  <span className="project-details__meta-label">Total tasks</span>
+                  <span className="project-details__meta-value">
+                    {projectAnalytics.overview.total_tasks}
+                  </span>
+                </div>
+                <div className="project-details__meta-row">
+                  <span className="project-details__meta-label">Completed tasks</span>
+                  <span className="project-details__meta-value">
+                    {projectAnalytics.overview.completed_tasks}
+                  </span>
+                </div>
+                <div className="project-details__meta-row">
+                  <span className="project-details__meta-label">In progress</span>
+                  <span className="project-details__meta-value">
+                    {projectAnalytics.overview.in_progress_tasks}
+                  </span>
+                </div>
+              </>
+            )}
             <div className="project-details__meta-row">
               <span className="project-details__meta-label">Created</span>
               <span className="project-details__meta-value">{formatAbsoluteDate(project.created_at)}</span>
@@ -206,6 +240,24 @@ function ProjectDetailsPage({ initialSection }) {
               <span className="project-details__meta-value">{formatAbsoluteDate(project.updated_at)}</span>
             </div>
           </div>
+
+          {projectAnalytics?.overview && projectAnalytics.overview.total_tasks > 0 && (
+            <div className="project-details__progress-bar-container">
+              <div
+                className="project-details__progress-bar-track"
+                role="progressbar"
+                aria-valuenow={projectAnalytics.overview.average_progress}
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-label="Project progress"
+              >
+                <div
+                  className="project-details__progress-bar-fill"
+                  style={{ width: `${projectAnalytics.overview.average_progress}%` }}
+                />
+              </div>
+            </div>
+          )}
         </Card>
       )}
 
