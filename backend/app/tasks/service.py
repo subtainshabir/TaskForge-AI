@@ -16,6 +16,15 @@ from app.ai.task_priority.schemas import TaskPriorityAnalysisResponse
 from app.ai.task_priority.service import analyze_task_priority_ai
 from app.ai.task_quality.schemas import TaskQualityResponse
 from app.ai.task_quality.service import analyze_task_quality_ai
+from app.ai.task_suggestions.schemas import (
+    TaskSuggestionItem,
+    TaskSuggestionsResponse,
+)
+from app.ai.task_suggestions.service import (
+    generate_project_task_suggestions,
+    generate_task_related_suggestions,
+    normalize_title,
+)
 from app.models.enums import TaskPriority, WorkStatus
 from app.models.phase import Phase
 from app.models.project import Project
@@ -958,3 +967,143 @@ def analyze_task_quality(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Task not found')
 
     return analyze_task_quality_ai(task=task, provider=provider)
+
+def get_project_task_suggestions(
+    db: Session,
+    user_id: int,
+    project_id: int,
+    provider: AIProvider,
+) -> TaskSuggestionsResponse:
+    project = db.execute(
+        select(Project).where(Project.id == project_id, Project.user_id == user_id)
+    ).scalar_one_or_none()
+    if project is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    tasks = list_tasks(db, project_id)
+    return generate_project_task_suggestions(project=project, tasks=tasks, provider=provider)
+
+
+def get_task_related_suggestions(
+    db: Session,
+    user_id: int,
+    task_id: int,
+    provider: AIProvider,
+) -> TaskSuggestionsResponse:
+    task = db.execute(
+        select(Task)
+        .join(Project, Task.project_id == Project.id)
+        .where(Task.id == task_id, Project.user_id == user_id)
+        .options(
+            selectinload(Task.project),
+            selectinload(Task.dependencies).selectinload(TaskDependency.depends_on_task),
+            selectinload(Task.phases).selectinload(Phase.subtasks),
+        )
+    ).scalar_one_or_none()
+    if task is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+
+    project_tasks = list_tasks(db, task.project_id)
+    return generate_task_related_suggestions(task=task, project_tasks=project_tasks, provider=provider)
+
+
+def apply_project_task_suggestions(
+    db: Session,
+    user_id: int,
+    project_id: int,
+    suggestions: List[TaskSuggestionItem],
+) -> List[Task]:
+    project = db.execute(
+        select(Project).where(Project.id == project_id, Project.user_id == user_id)
+    ).scalar_one_or_none()
+    if project is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    existing_tasks = list_tasks(db, project_id)
+    existing_normalized = {
+        normalize_title(t.title) for t in existing_tasks if t.title
+    }
+
+    created_tasks: List[Task] = []
+    seen_in_batch = set(existing_normalized)
+
+    for sug in suggestions:
+        norm = normalize_title(sug.title)
+        if not norm or norm in seen_in_batch:
+            continue
+        seen_in_batch.add(norm)
+
+        pri = sug.priority
+        if not isinstance(pri, TaskPriority):
+            try:
+                pri = TaskPriority(pri)
+            except (ValueError, TypeError):
+                pri = TaskPriority.MEDIUM
+
+        new_task = Task(
+            project_id=project.id,
+            user_id=user_id,
+            title=sug.title.strip(),
+            description=sug.description.strip() if sug.description else None,
+            status=WorkStatus.TODO,
+            priority=pri,
+            deadline=None,
+        )
+        db.add(new_task)
+        db.flush()
+
+        record_activity(
+            db=db,
+            task_id=new_task.id,
+            user_id=user_id,
+            activity_type="created",
+            description="Task created from AI suggestion",
+            metadata={
+                "title": new_task.title,
+                "source": "ai_suggestion",
+                "reason": sug.reason or "",
+            },
+        )
+        created_tasks.append(new_task)
+
+    db.commit()
+    for t in created_tasks:
+        db.refresh(t)
+    return created_tasks
+
+
+def apply_task_related_suggestions(
+    db: Session,
+    user_id: int,
+    task_id: int,
+    suggestions: List[TaskSuggestionItem],
+) -> List[Task]:
+    source_task = db.execute(
+        select(Task)
+        .join(Project, Task.project_id == Project.id)
+        .where(Task.id == task_id, Project.user_id == user_id)
+        .options(selectinload(Task.project))
+    ).scalar_one_or_none()
+    if source_task is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+
+    created = apply_project_task_suggestions(
+        db=db,
+        user_id=user_id,
+        project_id=source_task.project_id,
+        suggestions=suggestions,
+    )
+
+    if created:
+        record_activity(
+            db=db,
+            task_id=source_task.id,
+            user_id=user_id,
+            activity_type="ai_suggestions_applied",
+            description=f"{len(created)} related task(s) created from AI suggestions",
+            metadata={"created_count": len(created)},
+        )
+        db.commit()
+
+    return created
+

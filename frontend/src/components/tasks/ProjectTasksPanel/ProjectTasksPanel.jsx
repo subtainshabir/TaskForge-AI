@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CheckSquare, Plus, SearchX } from "lucide-react";
+import { CheckSquare, Plus, SearchX, Sparkles } from "lucide-react";
 import Card from "../../Card/Card.jsx";
 import Button from "../../Button/Button.jsx";
 import Modal from "../../Modal/Modal.jsx";
@@ -10,6 +10,7 @@ import ActiveFilters from "../ActiveFilters/ActiveFilters.jsx";
 import TaskList from "../TaskList/TaskList.jsx";
 import TaskForm from "../TaskForm/TaskForm.jsx";
 import DeleteTaskDialog from "../DeleteTaskDialog/DeleteTaskDialog.jsx";
+import TaskAISuggestions from "../TaskAISuggestions/TaskAISuggestions.jsx";
 import { useTasks } from "../../../hooks/useTasks.js";
 import { useTaskFilters } from "../../../hooks/useTaskFilters.js";
 import { useDebouncedValue } from "../../../hooks/useDebouncedValue.js";
@@ -48,6 +49,7 @@ function ProjectTasksPanel({ projectId }) {
   const isSearching = isSearchActive && isLoading;
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [deletingTask, setDeletingTask] = useState(null);
 
@@ -162,11 +164,33 @@ function ProjectTasksPanel({ projectId }) {
     <div>
       <div className="project-tasks-panel__header">
         <h2 style={{ margin: 0 }}>Tasks</h2>
-        <Button variant="primary" onClick={() => setIsCreateOpen(true)}>
-          <Plus size={16} aria-hidden="true" />
-          New Task
-        </Button>
+        <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center" }}>
+          <Button
+            variant="secondary"
+            onClick={() => setIsSuggestionsOpen((prev) => !prev)}
+            aria-expanded={isSuggestionsOpen}
+          >
+            <Sparkles size={16} aria-hidden="true" />
+            Suggest Tasks with AI
+          </Button>
+          <Button variant="primary" onClick={() => setIsCreateOpen(true)}>
+            <Plus size={16} aria-hidden="true" />
+            New Task
+          </Button>
+        </div>
       </div>
+
+      {isSuggestionsOpen && (
+        <TaskAISuggestions
+          projectId={projectId}
+          autoFetch
+          showCloseButton
+          onClose={() => setIsSuggestionsOpen(false)}
+          onTasksCreated={(createdList) => {
+            createdList.forEach((t) => addTask(t));
+          }}
+        />
+      )}
 
       {showToolbar && (
         <>

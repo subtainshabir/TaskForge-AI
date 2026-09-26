@@ -20,6 +20,7 @@ import { ErrorState } from "../../components/StatePanel/StatePanel.jsx";
 import ProjectForm from "../../components/projects/ProjectForm/ProjectForm.jsx";
 import DeleteProjectDialog from "../../components/projects/DeleteProjectDialog/DeleteProjectDialog.jsx";
 import ProjectTasksPanel from "../../components/tasks/ProjectTasksPanel/ProjectTasksPanel.jsx";
+import TaskAISuggestions from "../../components/tasks/TaskAISuggestions/TaskAISuggestions.jsx";
 import { projectService } from "../../services/projectService.js";
 import { apiErrorMessage } from "../../utils/apiErrorMessage.js";
 import { formatAbsoluteDate } from "../../utils/date.js";
@@ -30,7 +31,7 @@ const SECTIONS = [
   { id: "overview", label: "Overview", icon: LayoutList, enabled: true },
   { id: "tasks", label: "Tasks", icon: CheckSquare, enabled: true },
   { id: "notes", label: "Notes", icon: StickyNote, enabled: false },
-  { id: "ai", label: "AI", icon: Sparkles, enabled: false },
+  { id: "ai", label: "AI Suggestions", icon: Sparkles, enabled: true },
   { id: "activity", label: "Activity", icon: Activity, enabled: false },
 ];
 
@@ -179,6 +180,8 @@ function ProjectDetailsPage({ initialSection }) {
 
       {activeSection === "tasks" ? (
         <ProjectTasksPanel projectId={project.id} />
+      ) : activeSection === "ai" ? (
+        <TaskAISuggestions projectId={project.id} autoFetch />
       ) : (
         <Card>
           <h2 className="project-details__section-title">Overview</h2>

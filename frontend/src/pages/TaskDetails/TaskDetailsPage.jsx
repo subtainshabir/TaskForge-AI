@@ -18,6 +18,7 @@ import TaskPhases from "../../components/tasks/TaskPhases/TaskPhases.jsx";
 import TaskAIAnalysis from "../../components/tasks/TaskAIAnalysis/TaskAIAnalysis.jsx";
 import TaskAIPriority from "../../components/tasks/TaskAIPriority/TaskAIPriority.jsx";
 import TaskAIQuality from "../../components/tasks/TaskAIQuality/TaskAIQuality.jsx";
+import TaskAISuggestions from "../../components/tasks/TaskAISuggestions/TaskAISuggestions.jsx";
 import TaskActivity from "../../components/tasks/TaskActivity/TaskActivity.jsx";
 import { taskService } from "../../services/taskService.js";
 import { projectService } from "../../services/projectService.js";
@@ -208,6 +209,14 @@ function TaskDetailsPage() {
       <TaskAIAnalysis taskId={taskId} />
 
       <TaskAIQuality task={task} onEditTask={() => setIsEditOpen(true)} />
+
+      <TaskAISuggestions
+        projectId={projectId}
+        taskId={taskId}
+        onTasksCreated={() => {
+          triggerActivityRefresh();
+        }}
+      />
 
       <TaskActivity taskId={taskId} refreshKey={activityRefreshKey} />
 

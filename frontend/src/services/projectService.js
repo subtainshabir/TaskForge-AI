@@ -35,4 +35,17 @@ export const projectService = {
   remove(projectId) {
     return apiClient.request(`/projects/${projectId}`, { method: "DELETE" });
   },
+
+  getTaskSuggestions(projectId) {
+    return apiClient.request(`/projects/${projectId}/ai/task-suggestions`, {
+      method: "POST",
+    });
+  },
+
+  applyTaskSuggestions(projectId, suggestions) {
+    return apiClient.request(`/projects/${projectId}/ai/task-suggestions/apply`, {
+      method: "POST",
+      body: JSON.stringify({ suggestions }),
+    });
+  },
 };

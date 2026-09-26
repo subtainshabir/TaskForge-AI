@@ -122,4 +122,30 @@ export const taskService = {
       body: JSON.stringify({ suggestions }),
     });
   },
+
+  getProjectTaskSuggestions(projectId) {
+    return apiClient.request(`/projects/${projectId}/ai/task-suggestions`, {
+      method: "POST",
+    });
+  },
+
+  applyProjectTaskSuggestions(projectId, suggestions) {
+    return apiClient.request(`/projects/${projectId}/ai/task-suggestions/apply`, {
+      method: "POST",
+      body: JSON.stringify({ suggestions }),
+    });
+  },
+
+  getTaskRelatedSuggestions(taskId) {
+    return apiClient.request(`/tasks/${taskId}/ai/suggestions`, {
+      method: "POST",
+    });
+  },
+
+  applyTaskRelatedSuggestions(taskId, suggestions) {
+    return apiClient.request(`/tasks/${taskId}/ai/suggestions/apply`, {
+      method: "POST",
+      body: JSON.stringify({ suggestions }),
+    });
+  },
 };

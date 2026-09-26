@@ -40,6 +40,82 @@ class MockAIProvider(AIProvider):
 
         lower_text = f"{title} {description}".lower()
 
+        # Check if requested to suggest tasks
+        if system_prompt and any(w in system_prompt.lower() for w in ["task suggestion", "suggest tasks", "suggest additional tasks", "missing, high-value"]):
+            if "[FORCE_EMPTY_SUGGESTIONS]" in prompt:
+                return json.dumps({"suggestions": []})
+
+            lower_prompt = prompt.lower()
+            existing_lines = []
+            for line in prompt.splitlines():
+                line_s = line.strip()
+                if line_s.startswith("- ") and " (Status:" in line_s:
+                    title_part = line_s[2:].split(" (Status:")[0].strip().lower()
+                    existing_lines.append(title_part)
+                elif line_s.startswith("Task Title:"):
+                    existing_lines.append(line_s.replace("Task Title:", "").strip().lower())
+
+            if any(w in lower_prompt for w in ["ecommerce", "e-commerce", "store", "shop", "cart", "product", "checkout", "payment"]):
+                pool = [
+                    {
+                        "title": "Add Email Verification",
+                        "description": "Send confirmation emails to users after registration to verify their email addresses.",
+                        "reason": "User authentication exists, but email verification has not been implemented yet.",
+                        "priority": "medium",
+                    },
+                    {
+                        "title": "Implement Order Management",
+                        "description": "Create order creation, status tracking, and order history functionality.",
+                        "reason": "Shopping cart exists, but order management and processing is missing.",
+                        "priority": "high",
+                    },
+                    {
+                        "title": "Add Payment Failure Handling",
+                        "description": "Handle declined transactions, payment retry workflows, and customer notification.",
+                        "reason": "Payment integration exists, but error recovery and failure flows are missing.",
+                        "priority": "high",
+                    },
+                    {
+                        "title": "Add API Integration Tests",
+                        "description": "Test critical authentication, product management, and checkout backend workflows.",
+                        "reason": "Core features are present, but dedicated integration testing coverage is absent.",
+                        "priority": "medium",
+                    },
+                ]
+            else:
+                pool = [
+                    {
+                        "title": "Add API Integration Tests",
+                        "description": "Write automated test suites for critical backend endpoints and workflows.",
+                        "reason": "The project currently has implementation tasks but no testing coverage task.",
+                        "priority": "medium",
+                    },
+                    {
+                        "title": "Add Input Validation & Error Handling",
+                        "description": "Implement request validation bounds and consistent error response formats.",
+                        "reason": "Ensures robust handling of malformed client requests and failure states.",
+                        "priority": "medium",
+                    },
+                    {
+                        "title": "Configure CI/CD Deployment Pipeline",
+                        "description": "Set up continuous integration and automated deployment pipelines for the service.",
+                        "reason": "Streamlines deployment verification and production releases.",
+                        "priority": "low",
+                    },
+                    {
+                        "title": "Add System Documentation & API Guide",
+                        "description": "Document system architecture, setup instructions, and endpoint schemas.",
+                        "reason": "Improves developer onboarding and API contract transparency.",
+                        "priority": "low",
+                    },
+                ]
+
+            filtered_pool = [
+                item for item in pool
+                if not any(item["title"].lower() in ex or ex in item["title"].lower() for ex in existing_lines)
+            ]
+            return json.dumps({"suggestions": filtered_pool})
+
         # Check if requested to evaluate task quality
         if system_prompt and ("quality" in system_prompt.lower() or "actionable, and complete" in system_prompt.lower()):
             is_vague = len(title.strip()) < 20 and (not description or len(description.strip()) < 30)

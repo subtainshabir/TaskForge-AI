@@ -8,6 +8,7 @@ from app.ai.factory import get_ai_provider
 from app.ai.phase_refinement.schemas import ApplyRefinementsRequest, PhaseRefinementResponse
 from app.ai.task_priority.schemas import TaskPriorityAnalysisResponse
 from app.ai.task_quality.schemas import TaskQualityResponse
+from app.ai.task_suggestions.schemas import ApplyTaskSuggestionsRequest, TaskSuggestionsResponse
 from app.ai.task_understanding.schemas import TaskAnalysisResponse
 from app.ai.task_understanding.service import analyze_task_understanding
 from app.auth.dependencies import get_current_user
@@ -290,3 +291,96 @@ def apply_refinements_alias(
     return service.apply_phase_refinements(
         db=db, user_id=current_user.id, task_id=task_id, suggestions=payload.suggestions
     )
+
+@router.post(
+    "/projects/{project_id}/ai/task-suggestions",
+    response_model=TaskSuggestionsResponse,
+)
+def get_project_task_suggestions_endpoint(
+    project_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    ai_provider: AIProvider = Depends(get_ai_provider),
+) -> TaskSuggestionsResponse:
+    return service.get_project_task_suggestions(
+        db=db, user_id=current_user.id, project_id=project_id, provider=ai_provider
+    )
+
+
+@router.post(
+    "/projects/{project_id}/ai/suggestions",
+    response_model=TaskSuggestionsResponse,
+)
+def get_project_suggestions_alias(
+    project_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    ai_provider: AIProvider = Depends(get_ai_provider),
+) -> TaskSuggestionsResponse:
+    return service.get_project_task_suggestions(
+        db=db, user_id=current_user.id, project_id=project_id, provider=ai_provider
+    )
+
+
+@router.post(
+    "/projects/{project_id}/ai/task-suggestions/apply",
+    response_model=List[TaskResponse],
+    status_code=status.HTTP_201_CREATED,
+)
+def apply_project_task_suggestions_endpoint(
+    project_id: int,
+    payload: ApplyTaskSuggestionsRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> List[TaskResponse]:
+    return service.apply_project_task_suggestions(
+        db=db, user_id=current_user.id, project_id=project_id, suggestions=payload.suggestions
+    )
+
+
+@router.post(
+    "/projects/{project_id}/ai/suggestions/apply",
+    response_model=List[TaskResponse],
+    status_code=status.HTTP_201_CREATED,
+)
+def apply_project_suggestions_alias(
+    project_id: int,
+    payload: ApplyTaskSuggestionsRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> List[TaskResponse]:
+    return service.apply_project_task_suggestions(
+        db=db, user_id=current_user.id, project_id=project_id, suggestions=payload.suggestions
+    )
+
+
+@router.post(
+    "/tasks/{task_id}/ai/suggestions",
+    response_model=TaskSuggestionsResponse,
+)
+def get_task_related_suggestions_endpoint(
+    task_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    ai_provider: AIProvider = Depends(get_ai_provider),
+) -> TaskSuggestionsResponse:
+    return service.get_task_related_suggestions(
+        db=db, user_id=current_user.id, task_id=task_id, provider=ai_provider
+    )
+
+
+@router.post(
+    "/tasks/{task_id}/ai/suggestions/apply",
+    response_model=List[TaskResponse],
+    status_code=status.HTTP_201_CREATED,
+)
+def apply_task_related_suggestions_endpoint(
+    task_id: int,
+    payload: ApplyTaskSuggestionsRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> List[TaskResponse]:
+    return service.apply_task_related_suggestions(
+        db=db, user_id=current_user.id, task_id=task_id, suggestions=payload.suggestions
+    )
+
