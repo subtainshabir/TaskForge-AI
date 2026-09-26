@@ -8,6 +8,10 @@ from app.ai.factory import get_ai_provider
 from app.ai.phase_refinement.schemas import ApplyRefinementsRequest, PhaseRefinementResponse
 from app.ai.task_priority.schemas import TaskPriorityAnalysisResponse
 from app.ai.task_quality.schemas import TaskQualityResponse
+from app.ai.task_regeneration.schemas import (
+    TaskRegenerateRequest,
+    TaskRegenerateResponse,
+)
 from app.ai.task_suggestions.schemas import ApplyTaskSuggestionsRequest, TaskSuggestionsResponse
 from app.ai.task_understanding.schemas import TaskAnalysisResponse
 from app.ai.task_understanding.service import analyze_task_understanding
@@ -383,4 +387,26 @@ def apply_task_related_suggestions_endpoint(
     return service.apply_task_related_suggestions(
         db=db, user_id=current_user.id, task_id=task_id, suggestions=payload.suggestions
     )
+
+
+@router.post(
+    "/tasks/{task_id}/ai/regenerate",
+    response_model=TaskRegenerateResponse,
+)
+def regenerate_task_endpoint(
+    task_id: int,
+    payload: Optional[TaskRegenerateRequest] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    ai_provider: AIProvider = Depends(get_ai_provider),
+) -> TaskRegenerateResponse:
+    instruction = payload.instruction if payload else None
+    return service.regenerate_task_content(
+        db=db,
+        user_id=current_user.id,
+        task_id=task_id,
+        provider=ai_provider,
+        instruction=instruction,
+    )
+
 

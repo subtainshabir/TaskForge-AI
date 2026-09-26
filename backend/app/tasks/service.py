@@ -16,6 +16,8 @@ from app.ai.task_priority.schemas import TaskPriorityAnalysisResponse
 from app.ai.task_priority.service import analyze_task_priority_ai
 from app.ai.task_quality.schemas import TaskQualityResponse
 from app.ai.task_quality.service import analyze_task_quality_ai
+from app.ai.task_regeneration.schemas import TaskRegenerateResponse
+from app.ai.task_regeneration.service import regenerate_task_ai
 from app.ai.task_suggestions.schemas import (
     TaskSuggestionItem,
     TaskSuggestionsResponse,
@@ -1106,4 +1108,28 @@ def apply_task_related_suggestions(
         db.commit()
 
     return created
+
+
+def regenerate_task_content(
+    db: Session,
+    user_id: int,
+    task_id: int,
+    provider: AIProvider,
+    instruction: Optional[str] = None,
+) -> TaskRegenerateResponse:
+    task = db.execute(
+        select(Task)
+        .join(Project, Task.project_id == Project.id)
+        .where(Task.id == task_id, Project.user_id == user_id)
+        .options(
+            selectinload(Task.project),
+            selectinload(Task.dependencies).selectinload(TaskDependency.depends_on_task),
+            selectinload(Task.phases).selectinload(Phase.subtasks),
+        )
+    ).scalar_one_or_none()
+    if task is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+
+    return regenerate_task_ai(task=task, provider=provider, instruction=instruction)
+
 

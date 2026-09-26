@@ -19,6 +19,7 @@ import TaskAIAnalysis from "../../components/tasks/TaskAIAnalysis/TaskAIAnalysis
 import TaskAIPriority from "../../components/tasks/TaskAIPriority/TaskAIPriority.jsx";
 import TaskAIQuality from "../../components/tasks/TaskAIQuality/TaskAIQuality.jsx";
 import TaskAISuggestions from "../../components/tasks/TaskAISuggestions/TaskAISuggestions.jsx";
+import TaskAIRegenerateModal from "../../components/tasks/TaskAIRegenerate/TaskAIRegenerateModal.jsx";
 import TaskActivity from "../../components/tasks/TaskActivity/TaskActivity.jsx";
 import { taskService } from "../../services/taskService.js";
 import { projectService } from "../../services/projectService.js";
@@ -51,6 +52,7 @@ function TaskDetailsPage() {
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isRegenerateOpen, setIsRegenerateOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [formError, setFormError] = useState("");
@@ -157,6 +159,7 @@ function TaskDetailsPage() {
         isBlocked={task.is_blocked}
         onEdit={() => setIsEditOpen(true)}
         onDelete={() => setIsDeleteOpen(true)}
+        onRegenerate={() => setIsRegenerateOpen(true)}
       />
 
       <div className="task-controls">
@@ -208,7 +211,11 @@ function TaskDetailsPage() {
 
       <TaskAIAnalysis taskId={taskId} />
 
-      <TaskAIQuality task={task} onEditTask={() => setIsEditOpen(true)} />
+      <TaskAIQuality
+        task={task}
+        onEditTask={() => setIsEditOpen(true)}
+        onRegenerateTask={() => setIsRegenerateOpen(true)}
+      />
 
       <TaskAISuggestions
         projectId={projectId}
@@ -219,6 +226,16 @@ function TaskDetailsPage() {
       />
 
       <TaskActivity taskId={taskId} refreshKey={activityRefreshKey} />
+
+      <TaskAIRegenerateModal
+        open={isRegenerateOpen}
+        onClose={() => setIsRegenerateOpen(false)}
+        task={task}
+        onTaskUpdated={(updated) => {
+          setTask(updated);
+          triggerActivityRefresh();
+        }}
+      />
 
       <Modal
         open={isEditOpen}

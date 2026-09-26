@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ChevronRight, Lock, Pencil, Trash2 } from "lucide-react";
+import { ChevronRight, Lock, Pencil, Sparkles, Trash2 } from "lucide-react";
 import Button from "../../Button/Button.jsx";
 import Badge from "../../Badge/Badge.jsx";
 import "./TaskHeader.css";
@@ -12,6 +12,7 @@ function TaskHeader({
   isBlocked,
   onEdit,
   onDelete,
+  onRegenerate,
 }) {
   return (
     <div className="task-header">
@@ -38,6 +39,12 @@ function TaskHeader({
           )}
         </div>
         <div className="task-header__actions">
+          {onRegenerate && (
+            <Button variant="secondary" onClick={onRegenerate}>
+              <Sparkles size={16} aria-hidden="true" />
+              Regenerate with AI
+            </Button>
+          )}
           <Button variant="secondary" onClick={onEdit}>
             <Pencil size={16} aria-hidden="true" />
             Edit

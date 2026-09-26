@@ -54,7 +54,7 @@ function formatDimensionName(name) {
   return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
-function TaskAIQuality({ task, onEditTask }) {
+function TaskAIQuality({ task, onEditTask, onRegenerateTask }) {
   const [quality, setQuality] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState("");
@@ -250,14 +250,24 @@ function TaskAIQuality({ task, onEditTask }) {
           )}
 
           <div className="task-ai-quality__actions">
-            {onEditTask && (
+            {onRegenerateTask && (
               <Button
                 variant="primary"
+                onClick={onRegenerateTask}
+                id="regenerate-task-button"
+              >
+                <Sparkles size={14} aria-hidden="true" />
+                Regenerate with AI
+              </Button>
+            )}
+            {onEditTask && (
+              <Button
+                variant="secondary"
                 onClick={onEditTask}
                 id="improve-task-button"
               >
                 <Edit3 size={14} aria-hidden="true" />
-                Improve Task
+                Edit Task
               </Button>
             )}
             <Button

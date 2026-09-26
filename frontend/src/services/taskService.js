@@ -148,4 +148,11 @@ export const taskService = {
       body: JSON.stringify({ suggestions }),
     });
   },
+
+  regenerateWithAI(taskId, instruction = null) {
+    return apiClient.request(`/tasks/${taskId}/ai/regenerate`, {
+      method: "POST",
+      body: JSON.stringify({ instruction: instruction || null }),
+    });
+  },
 };

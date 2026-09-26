@@ -40,6 +40,73 @@ class MockAIProvider(AIProvider):
 
         lower_text = f"{title} {description}".lower()
 
+        # Check if requested to regenerate task
+        if system_prompt and any(w in system_prompt.lower() for w in ["regenerat", "regeneration principles", "improve an existing task"]):
+            if "[FORCE_INVALID_REGEN_RESPONSE]" in prompt:
+                return "Not valid JSON"
+
+            instruction = ""
+            for idx, line in enumerate(prompt.splitlines()):
+                if line.strip() == "User Instruction:" and idx + 1 < len(prompt.splitlines()):
+                    instruction = prompt.splitlines()[idx + 1].strip()
+                elif "User Instruction:" in line:
+                    instruction = line.split("User Instruction:")[1].strip()
+
+            orig_title = title or "Task"
+            orig_desc = description or ""
+
+            if "login" in orig_title.lower() or "auth" in orig_title.lower():
+                prop_title = "Fix authentication failure during user login"
+                prop_desc = (
+                    "Investigate and resolve the authentication failure occurring when valid credentials are submitted. "
+                    "Verify token generation, error response status codes, and confirm seamless redirection upon successful login."
+                )
+                changes = [
+                    "Clarified the problem statement and error scenario",
+                    "Defined expected outcome and definition of done",
+                    "Made implementation steps actionable",
+                ]
+            elif "cart" in orig_title.lower() or "checkout" in orig_title.lower() or "payment" in orig_title.lower():
+                prop_title = "Resolve checkout calculation and transaction failure"
+                prop_desc = (
+                    "Audit and fix cart item total calculations, discount code application, and payment gateway submission. "
+                    "Ensure error states are displayed clearly to the customer and successful transactions create verified orders."
+                )
+                changes = [
+                    "Specified exact calculation and payment submission touchpoints",
+                    "Added requirement for customer-facing error recovery",
+                    "Clarified order completion criteria",
+                ]
+            else:
+                clean_t = orig_title.strip()
+                if clean_t.lower().startswith("fix "):
+                    prop_title = f"Diagnose and resolve {clean_t[4:]}"
+                elif clean_t.lower().startswith("add ") or clean_t.lower().startswith("create "):
+                    prop_title = f"Implement and verify {clean_t.split(' ', 1)[1]}"
+                else:
+                    prop_title = f"Refine and complete {clean_t}"
+
+                prop_desc = (
+                    f"Thoroughly analyze and implement the requirements for '{orig_title}'. "
+                    "Address edge cases, ensure input validation, add automated tests covering standard workflows, "
+                    "and verify end-to-end functionality meets expected acceptance criteria."
+                )
+                changes = [
+                    "Replaced ambiguous wording with a concrete, actionable objective",
+                    "Added specific implementation and edge-case scope",
+                    "Defined test coverage and verification criteria as definition of done",
+                ]
+
+            if instruction:
+                prop_desc += f" (Tailored to instruction: {instruction})"
+                changes.append(f"Applied user instruction: {instruction}")
+
+            return json.dumps({
+                "title": prop_title,
+                "description": prop_desc,
+                "changes": changes,
+            })
+
         # Check if requested to suggest tasks
         if system_prompt and any(w in system_prompt.lower() for w in ["task suggestion", "suggest tasks", "suggest additional tasks", "missing, high-value"]):
             if "[FORCE_EMPTY_SUGGESTIONS]" in prompt:
