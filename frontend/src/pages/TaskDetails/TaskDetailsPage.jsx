@@ -58,11 +58,20 @@ function TaskDetailsPage() {
   const [formError, setFormError] = useState("");
   const [deleteError, setDeleteError] = useState("");
   const [activityRefreshKey, setActivityRefreshKey] = useState(0);
+  const [phaseStats, setPhaseStats] = useState(null);
 
   const triggerActivityRefresh = () => setActivityRefreshKey((k) => k + 1);
 
-  const handlePhaseChange = useCallback(async () => {
+  const handlePhaseChange = useCallback(async (stats) => {
     triggerActivityRefresh();
+    if (stats) {
+      if (typeof stats.total === "number" && typeof stats.completed === "number") {
+        setPhaseStats({ total: stats.total, completed: stats.completed });
+      }
+      if (typeof stats.progress === "number") {
+        setTask((prev) => (prev ? { ...prev, progress: stats.progress } : prev));
+      }
+    }
     try {
       const updated = await taskService.get(taskId);
       setTask(updated);
@@ -185,6 +194,35 @@ function TaskDetailsPage() {
           }}
         />
       </div>
+
+      <Card className="task-progress-card">
+        <div className="task-progress-card__header">
+          <h2 className="task-progress-card__title">Task Progress</h2>
+          <span className="task-progress-card__percentage">
+            {typeof task.progress === "number" ? task.progress : 0}%
+          </span>
+        </div>
+        <div
+          className="task-progress-card__track"
+          role="progressbar"
+          aria-valuenow={typeof task.progress === "number" ? task.progress : 0}
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-label="Task progress"
+        >
+          <div
+            className="task-progress-card__fill"
+            style={{ width: `${typeof task.progress === "number" ? task.progress : 0}%` }}
+          />
+        </div>
+        <div className="task-progress-card__subtext">
+          {phaseStats && phaseStats.total > 0
+            ? `${phaseStats.completed} of ${phaseStats.total} phases completed`
+            : typeof task.progress === "number" && task.progress > 0
+            ? `${task.progress}% completed`
+            : "No phases created yet"}
+        </div>
+      </Card>
 
       <Card>
         <h2 className="task-details__section-title">Overview</h2>

@@ -43,6 +43,9 @@ class TaskUpdate(BaseModel):
         return stripped
 
 
+from app.models.enums import WorkStatus
+
+
 class TaskResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -58,6 +61,39 @@ class TaskResponse(BaseModel):
     project_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+
+    @model_validator(mode="before")
+    @classmethod
+    def derive_progress_from_phases(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            phases = data.get("phases")
+            if phases is not None and isinstance(phases, list):
+                if not phases:
+                    data["progress"] = 0
+                else:
+                    completed = sum(
+                        1
+                        for p in phases
+                        if (getattr(p, "status", None) in (WorkStatus.COMPLETED, "completed"))
+                        or (isinstance(p, dict) and p.get("status") in (WorkStatus.COMPLETED, "completed"))
+                    )
+                    data["progress"] = int(round((completed / len(phases)) * 100))
+        elif hasattr(data, "phases") and data.phases is not None:
+            phases = data.phases
+            if not phases:
+                derived = 0
+            else:
+                completed = sum(
+                    1
+                    for p in phases
+                    if getattr(p, "status", None) in (WorkStatus.COMPLETED, "completed")
+                )
+                derived = int(round((completed / len(phases)) * 100))
+            try:
+                data.progress = derived
+            except Exception:
+                pass
+        return data
 
 
 class PhaseCreate(BaseModel):

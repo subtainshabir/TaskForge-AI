@@ -27,6 +27,12 @@ function TaskMetadata({ task }) {
         </Badge>
       </div>
       <div className="task-metadata__row">
+        <span className="task-metadata__label">Progress</span>
+        <span className="task-metadata__value task-metadata__value--progress">
+          {task.progress ?? 0}%
+        </span>
+      </div>
+      <div className="task-metadata__row">
         <span className="task-metadata__label">Due date</span>
         <span className={`task-metadata__value ${dueInfo.urgency === "overdue" ? "task-metadata__value--overdue" : ""}`}>
           {dueInfo.urgency !== "none" && <CalendarClock size={13} aria-hidden="true" />}

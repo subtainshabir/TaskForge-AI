@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, Sequence
 
 from fastapi import HTTPException, status
 from sqlalchemy import or_, select
@@ -57,6 +57,7 @@ def list_user_tasks(
         .options(
             selectinload(Task.project),
             selectinload(Task.dependencies).selectinload(TaskDependency.depends_on_task),
+            selectinload(Task.phases),
         )
     )
 
@@ -83,7 +84,10 @@ def list_user_tasks(
         query = query.where(or_(Task.title.ilike(pattern), Task.description.ilike(pattern)))
 
     query = query.order_by(Task.created_at.desc())
-    return list(db.execute(query).scalars().all())
+    tasks = list(db.execute(query).scalars().all())
+    for t in tasks:
+        t.progress = calculate_phases_progress(t.phases)
+    return tasks
 
 
 def list_tasks(db: Session, project_id: int, search: Optional[str] = None) -> List[Task]:
@@ -93,6 +97,7 @@ def list_tasks(db: Session, project_id: int, search: Optional[str] = None) -> Li
         .options(
             selectinload(Task.project),
             selectinload(Task.dependencies).selectinload(TaskDependency.depends_on_task),
+            selectinload(Task.phases),
         )
     )
 
@@ -102,7 +107,10 @@ def list_tasks(db: Session, project_id: int, search: Optional[str] = None) -> Li
         query = query.where(or_(Task.title.ilike(pattern), Task.description.ilike(pattern)))
 
     query = query.order_by(Task.created_at.desc())
-    return list(db.execute(query).scalars().all())
+    tasks = list(db.execute(query).scalars().all())
+    for t in tasks:
+        t.progress = calculate_phases_progress(t.phases)
+    return tasks
 
 
 def get_owned_task(db: Session, user_id: int, task_id: int) -> Task:
@@ -113,10 +121,12 @@ def get_owned_task(db: Session, user_id: int, task_id: int) -> Task:
         .options(
             selectinload(Task.project),
             selectinload(Task.dependencies).selectinload(TaskDependency.depends_on_task),
+            selectinload(Task.phases),
         )
     ).scalar_one_or_none()
     if task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+    task.progress = calculate_phases_progress(task.phases)
     return task
 
 
@@ -262,6 +272,7 @@ def update_task(
 
     db.commit()
     db.refresh(task)
+    task.progress = calculate_phases_progress(task.phases)
     return task
 
 
@@ -424,17 +435,44 @@ def list_task_activities(
     return list(db.execute(stmt).scalars().all())
 
 
-def sync_task_progress(db: Session, task: Task) -> int:
+def calculate_phases_progress(phases: Optional[Sequence[Phase]]) -> int:
+    """
+    Calculate progress percentage (0-100) from a collection of phases.
+    Formula: (completed phases / total phases) * 100, rounded to integer.
+    Returns 0 if there are no phases.
+    """
+    if not phases:
+        return 0
+    completed = sum(
+        1
+        for p in phases
+        if getattr(p, "status", None) in (WorkStatus.COMPLETED, "completed")
+    )
+    return int(round((completed / len(phases)) * 100))
+
+
+def calculate_task_progress(db: Session, task_id: int) -> int:
+    """
+    Load a task's phases and calculate its progress percentage:
+    1. Load the task's phases.
+    2. Count total phases.
+    3. Count completed phases.
+    4. Calculate percentage.
+    5. Return the progress value.
+    """
     phases = (
-        db.execute(select(Phase).where(Phase.task_id == task.id))
+        db.execute(select(Phase).where(Phase.task_id == task_id))
         .scalars()
         .all()
     )
-    if not phases:
-        task.progress = 0
-    else:
-        completed = sum(1 for p in phases if p.status == WorkStatus.COMPLETED)
-        task.progress = int(round((completed / len(phases)) * 100))
+    return calculate_phases_progress(phases)
+
+
+def sync_task_progress(db: Session, task: Task) -> int:
+    """
+    Synchronize and persist task progress calculated from its phases.
+    """
+    task.progress = calculate_task_progress(db, task.id)
     return task.progress
 
 

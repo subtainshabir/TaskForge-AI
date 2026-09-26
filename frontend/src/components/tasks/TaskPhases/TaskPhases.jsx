@@ -98,7 +98,11 @@ function TaskPhases({ taskId, onPhaseChange }) {
     setError("");
     try {
       const data = await taskService.getPhases(taskId);
-      setPhases(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : [];
+      setPhases(list);
+      const comp = list.filter((p) => p.status === "completed").length;
+      const pct = list.length === 0 ? 0 : Math.round((comp / list.length) * 100);
+      onPhaseChange?.({ total: list.length, completed: comp, progress: pct });
     } catch (err) {
       setError(apiErrorMessage(err, "Failed to load task phases."));
     } finally {
@@ -128,8 +132,11 @@ function TaskPhases({ taskId, onPhaseChange }) {
 
     try {
       const newPhases = await taskService.generatePhases(taskId, replaceExisting);
-      setPhases(Array.isArray(newPhases) ? newPhases : []);
-      onPhaseChange?.();
+      const list = Array.isArray(newPhases) ? newPhases : [];
+      setPhases(list);
+      const comp = list.filter((p) => p.status === "completed").length;
+      const pct = list.length === 0 ? 0 : Math.round((comp / list.length) * 100);
+      onPhaseChange?.({ total: list.length, completed: comp, progress: pct });
     } catch (err) {
       setGenerateError(
         apiErrorMessage(
@@ -210,10 +217,13 @@ function TaskPhases({ taskId, onPhaseChange }) {
 
     try {
       const updatedPhases = await taskService.applyPhaseRefinements(taskId, selectedSuggestions);
-      setPhases(Array.isArray(updatedPhases) ? updatedPhases : []);
+      const list = Array.isArray(updatedPhases) ? updatedPhases : [];
+      setPhases(list);
       setRefinementResult(null);
       setSelectedSuggestionIds(new Set());
-      onPhaseChange?.();
+      const comp = list.filter((p) => p.status === "completed").length;
+      const pct = list.length === 0 ? 0 : Math.round((comp / list.length) * 100);
+      onPhaseChange?.({ total: list.length, completed: comp, progress: pct });
     } catch (err) {
       setApplyError(
         apiErrorMessage(
@@ -240,24 +250,26 @@ function TaskPhases({ taskId, onPhaseChange }) {
     const nowIso = new Date().toISOString();
 
     // Optimistically update phase state in-place (preserves exact array order)
-    setPhases((prev) =>
-      prev.map((p) =>
-        p.id === phase.id
-          ? {
-              ...p,
-              status: nextStatus,
-              progress:
-                nextStatus === "completed"
-                  ? 100
-                  : p.status === "completed"
-                  ? 0
-                  : p.progress,
-              completed_at:
-                nextStatus === "completed" ? p.completed_at || nowIso : null,
-            }
-          : p
-      )
+    const optimisticPhases = prevPhases.map((p) =>
+      p.id === phase.id
+        ? {
+            ...p,
+            status: nextStatus,
+            progress:
+              nextStatus === "completed"
+                ? 100
+                : p.status === "completed"
+                ? 0
+                : p.progress,
+            completed_at:
+              nextStatus === "completed" ? p.completed_at || nowIso : null,
+          }
+        : p
     );
+    setPhases(optimisticPhases);
+    const optComp = optimisticPhases.filter((p) => p.status === "completed").length;
+    const optPct = optimisticPhases.length === 0 ? 0 : Math.round((optComp / optimisticPhases.length) * 100);
+    onPhaseChange?.({ total: optimisticPhases.length, completed: optComp, progress: optPct });
 
     setUpdatingPhaseIds((prev) => new Set(prev).add(phase.id));
     setError("");
@@ -267,11 +279,17 @@ function TaskPhases({ taskId, onPhaseChange }) {
         status: nextStatus,
       });
       // Replace with confirmed server phase
-      setPhases((prev) => prev.map((p) => (p.id === phase.id ? updated : p)));
-      onPhaseChange?.();
+      const confirmedPhases = prevPhases.map((p) => (p.id === phase.id ? updated : p));
+      setPhases(confirmedPhases);
+      const comp = confirmedPhases.filter((p) => p.status === "completed").length;
+      const pct = confirmedPhases.length === 0 ? 0 : Math.round((comp / confirmedPhases.length) * 100);
+      onPhaseChange?.({ total: confirmedPhases.length, completed: comp, progress: pct });
     } catch (err) {
       // Revert optimistic changes on failure
       setPhases(prevPhases);
+      const comp = prevPhases.filter((p) => p.status === "completed").length;
+      const pct = prevPhases.length === 0 ? 0 : Math.round((comp / prevPhases.length) * 100);
+      onPhaseChange?.({ total: prevPhases.length, completed: comp, progress: pct });
       setError(apiErrorMessage(err, "Failed to update phase status."));
     } finally {
       setUpdatingPhaseIds((prev) => {
@@ -286,8 +304,11 @@ function TaskPhases({ taskId, onPhaseChange }) {
     setDeletingId(phaseId);
     try {
       await taskService.deletePhase(taskId, phaseId);
-      setPhases((prev) => prev.filter((p) => p.id !== phaseId));
-      onPhaseChange?.();
+      const remainingPhases = phases.filter((p) => p.id !== phaseId);
+      setPhases(remainingPhases);
+      const comp = remainingPhases.filter((p) => p.status === "completed").length;
+      const pct = remainingPhases.length === 0 ? 0 : Math.round((comp / remainingPhases.length) * 100);
+      onPhaseChange?.({ total: remainingPhases.length, completed: comp, progress: pct });
     } catch (err) {
       setError(apiErrorMessage(err, "Failed to delete phase."));
     } finally {
@@ -324,13 +345,14 @@ function TaskPhases({ taskId, onPhaseChange }) {
     setModalError("");
 
     try {
+      let nextPhases;
       if (editingPhase) {
         const updated = await taskService.updatePhase(taskId, editingPhase.id, {
           title: modalTitle.trim(),
           description: modalDescription.trim() || null,
           status: modalStatus,
         });
-        setPhases((prev) => prev.map((p) => (p.id === editingPhase.id ? updated : p)));
+        nextPhases = phases.map((p) => (p.id === editingPhase.id ? updated : p));
       } else {
         const created = await taskService.createPhase(taskId, {
           title: modalTitle.trim(),
@@ -338,10 +360,13 @@ function TaskPhases({ taskId, onPhaseChange }) {
           status: modalStatus,
           order_index: phases.length,
         });
-        setPhases((prev) => [...prev, created]);
+        nextPhases = [...phases, created];
       }
+      setPhases(nextPhases);
       setIsModalOpen(false);
-      onPhaseChange?.();
+      const comp = nextPhases.filter((p) => p.status === "completed").length;
+      const pct = nextPhases.length === 0 ? 0 : Math.round((comp / nextPhases.length) * 100);
+      onPhaseChange?.({ total: nextPhases.length, completed: comp, progress: pct });
     } catch (err) {
       setModalError(apiErrorMessage(err, "Failed to save phase."));
     } finally {

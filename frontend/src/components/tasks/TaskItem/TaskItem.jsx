@@ -95,6 +95,22 @@ function TaskItem({
             {dueInfo.urgency !== "none" && <CalendarClock size={12} aria-hidden="true" />}
             {dueInfo.label}
           </span>
+          {typeof task.progress === "number" && (
+            <span
+              className={`task-item__progress ${
+                task.progress === 100 ? "task-item__progress--complete" : ""
+              }`}
+              title={`Progress: ${task.progress}%`}
+            >
+              <span className="task-item__progress-bar" aria-hidden="true">
+                <span
+                  className="task-item__progress-fill"
+                  style={{ width: `${task.progress}%` }}
+                />
+              </span>
+              <span className="task-item__progress-label">{task.progress}%</span>
+            </span>
+          )}
         </div>
       </div>
 

@@ -34,3 +34,7 @@
 .task-metadata__value--overdue {
   color: var(--color-danger);
 }
+.task-metadata__value--progress {
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+}

@@ -145,6 +145,48 @@
   color: var(--color-text-secondary);
 }
 
+.task-item__progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.task-item__progress--complete {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.task-item__progress-bar {
+  display: inline-block;
+  width: 32px;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+.task-item__progress-fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+  border-radius: var(--radius-full);
+  transition: width 300ms ease;
+}
+
+.task-item__progress-label {
+  font-size: 11px;
+  font-weight: var(--weight-semibold);
+}
+
 .task-item__actions {
   display: flex;
   gap: var(--space-1);
