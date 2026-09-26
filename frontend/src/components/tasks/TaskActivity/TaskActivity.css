@@ -63,19 +63,32 @@
   color: var(--color-text-secondary);
 }
 
-.task-activity__item--completed .task-activity__icon-wrapper {
+.task-activity__item--completed .task-activity__icon-wrapper,
+.task-activity__item--phase_completed .task-activity__icon-wrapper {
   border-color: var(--color-success);
   color: var(--color-success);
 }
 
-.task-activity__item--created .task-activity__icon-wrapper {
+.task-activity__item--created .task-activity__icon-wrapper,
+.task-activity__item--phase_created .task-activity__icon-wrapper {
   border-color: var(--color-accent);
   color: var(--color-accent);
 }
 
-.task-activity__item--status_changed .task-activity__icon-wrapper {
+.task-activity__item--status_changed .task-activity__icon-wrapper,
+.task-activity__item--phase_updated .task-activity__icon-wrapper {
   border-color: var(--color-ai);
   color: var(--color-ai);
+}
+
+.task-activity__item--phase_reopened .task-activity__icon-wrapper {
+  border-color: var(--color-warning, #f59e0b);
+  color: var(--color-warning, #f59e0b);
+}
+
+.task-activity__item--phase_deleted .task-activity__icon-wrapper {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
 }
 
 .task-activity__item--priority_changed .task-activity__icon-wrapper {

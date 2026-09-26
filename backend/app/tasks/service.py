@@ -462,7 +462,20 @@ def create_phase(
         )
         order_idx = len(existing_phases)
 
-    status_val = WorkStatus(payload.status or "todo")
+    status_str = payload.status or "todo"
+    try:
+        status_val = WorkStatus(status_str)
+    except (ValueError, KeyError):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid phase status: {status_str}. Must be one of todo, in_progress, completed",
+        )
+    if status_val not in {WorkStatus.TODO, WorkStatus.IN_PROGRESS, WorkStatus.COMPLETED}:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid phase status: {status_str}. Must be one of todo, in_progress, completed",
+        )
+
     is_completed = status_val == WorkStatus.COMPLETED
     completed_time = datetime.now(timezone.utc) if is_completed else None
 
@@ -517,7 +530,19 @@ def update_phase(
         phase.order_index = order_idx
 
     if payload.status is not None:
-        new_status = WorkStatus(payload.status)
+        try:
+            new_status = WorkStatus(payload.status)
+        except (ValueError, KeyError):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid phase status: {payload.status}. Must be one of todo, in_progress, completed",
+            )
+        if new_status not in {WorkStatus.TODO, WorkStatus.IN_PROGRESS, WorkStatus.COMPLETED}:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid phase status: {payload.status}. Must be one of todo, in_progress, completed",
+            )
+
         if new_status != phase.status:
             old_status = phase.status
             phase.status = new_status
@@ -529,25 +554,40 @@ def update_phase(
                     task_id=task.id,
                     user_id=user_id,
                     activity_type="phase_completed",
-                    description=f'Phase completed: "{phase.title}"',
+                    description=f'Phase "{phase.title}" completed',
                     metadata={"phase_id": phase.id, "phase_title": phase.title},
                 )
             else:
                 phase.completed_at = None
                 if old_status == WorkStatus.COMPLETED:
                     phase.progress = 0
-                record_activity(
-                    db=db,
-                    task_id=task.id,
-                    user_id=user_id,
-                    activity_type="phase_updated",
-                    description=f'Phase status changed: "{phase.title}" ({new_status.value})',
-                    metadata={
-                        "phase_id": phase.id,
-                        "phase_title": phase.title,
-                        "new_status": new_status.value,
-                    },
-                )
+                    record_activity(
+                        db=db,
+                        task_id=task.id,
+                        user_id=user_id,
+                        activity_type="phase_reopened",
+                        description=f'Phase "{phase.title}" reopened',
+                        metadata={
+                            "phase_id": phase.id,
+                            "phase_title": phase.title,
+                            "new_status": new_status.value,
+                            "old_status": old_status.value,
+                        },
+                    )
+                else:
+                    record_activity(
+                        db=db,
+                        task_id=task.id,
+                        user_id=user_id,
+                        activity_type="phase_updated",
+                        description=f'Phase "{phase.title}" status changed to {new_status.value.replace("_", " ")}',
+                        metadata={
+                            "phase_id": phase.id,
+                            "phase_title": phase.title,
+                            "new_status": new_status.value,
+                            "old_status": old_status.value,
+                        },
+                    )
 
     if payload.progress is not None and phase.status != WorkStatus.COMPLETED:
         phase.progress = max(0, min(100, payload.progress))

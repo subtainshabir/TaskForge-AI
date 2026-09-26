@@ -4,6 +4,7 @@ from typing import Any, Dict, Literal, Optional
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 TaskStatusLiteral = Literal["todo", "in_progress", "blocked", "completed", "cancelled"]
+PhaseStatusLiteral = Literal["todo", "in_progress", "completed"]
 TaskPriorityLiteral = Literal["low", "medium", "high", "urgent"]
 
 
@@ -64,7 +65,7 @@ class PhaseCreate(BaseModel):
     description: Optional[str] = Field(default=None, max_length=2000)
     order_index: Optional[int] = None
     order: Optional[int] = None
-    status: Optional[TaskStatusLiteral] = "todo"
+    status: Optional[PhaseStatusLiteral] = "todo"
 
     @field_validator("title")
     @classmethod
@@ -80,7 +81,7 @@ class PhaseUpdate(BaseModel):
     description: Optional[str] = Field(default=None, max_length=2000)
     order_index: Optional[int] = None
     order: Optional[int] = None
-    status: Optional[TaskStatusLiteral] = None
+    status: Optional[PhaseStatusLiteral] = None
     progress: Optional[int] = None
 
     @field_validator("title")

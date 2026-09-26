@@ -28,6 +28,11 @@ const ACTIVITY_ICONS = {
   completed: CheckCircle2,
   dependency_added: GitCommit,
   dependency_removed: Trash2,
+  phase_created: PlusCircle,
+  phase_updated: RefreshCw,
+  phase_completed: CheckCircle2,
+  phase_reopened: RefreshCw,
+  phase_deleted: Trash2,
 };
 
 function TaskActivity({ taskId, refreshKey = 0 }) {

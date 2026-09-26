@@ -23,6 +23,7 @@ import Modal from "../../Modal/Modal.jsx";
 import Spinner from "../../Spinner/Spinner.jsx";
 import { taskService } from "../../../services/taskService.js";
 import { apiErrorMessage } from "../../../utils/apiErrorMessage.js";
+import { formatAbsoluteDate, formatActivityTime } from "../../../utils/date.js";
 import "./TaskPhases.css";
 
 const PHASE_STATUS_META = {
@@ -88,6 +89,7 @@ function TaskPhases({ taskId, onPhaseChange }) {
   const [modalStatus, setModalStatus] = useState("todo");
   const [modalError, setModalError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [updatingPhaseIds, setUpdatingPhaseIds] = useState(new Set());
 
   const [deletingId, setDeletingId] = useState(null);
 
@@ -225,28 +227,58 @@ function TaskPhases({ taskId, onPhaseChange }) {
   };
 
   const handleToggleComplete = async (phase) => {
+    if (updatingPhaseIds.has(phase.id)) return;
     const nextStatus = phase.status === "completed" ? "todo" : "completed";
-    try {
-      const updated = await taskService.updatePhase(taskId, phase.id, {
-        status: nextStatus,
-      });
-      setPhases((prev) => prev.map((p) => (p.id === phase.id ? updated : p)));
-      onPhaseChange?.();
-    } catch (err) {
-      setError(apiErrorMessage(err, "Failed to update phase status."));
-    }
+    await handleStatusChange(phase, nextStatus);
   };
 
   const handleStatusChange = async (phase, nextStatus) => {
-    if (phase.status === nextStatus) return;
+    if (phase.status === nextStatus || updatingPhaseIds.has(phase.id)) return;
+
+    // Snapshot current phases state for instant rollback on error
+    const prevPhases = phases;
+    const nowIso = new Date().toISOString();
+
+    // Optimistically update phase state in-place (preserves exact array order)
+    setPhases((prev) =>
+      prev.map((p) =>
+        p.id === phase.id
+          ? {
+              ...p,
+              status: nextStatus,
+              progress:
+                nextStatus === "completed"
+                  ? 100
+                  : p.status === "completed"
+                  ? 0
+                  : p.progress,
+              completed_at:
+                nextStatus === "completed" ? p.completed_at || nowIso : null,
+            }
+          : p
+      )
+    );
+
+    setUpdatingPhaseIds((prev) => new Set(prev).add(phase.id));
+    setError("");
+
     try {
       const updated = await taskService.updatePhase(taskId, phase.id, {
         status: nextStatus,
       });
+      // Replace with confirmed server phase
       setPhases((prev) => prev.map((p) => (p.id === phase.id ? updated : p)));
       onPhaseChange?.();
     } catch (err) {
+      // Revert optimistic changes on failure
+      setPhases(prevPhases);
       setError(apiErrorMessage(err, "Failed to update phase status."));
+    } finally {
+      setUpdatingPhaseIds((prev) => {
+        const next = new Set(prev);
+        next.delete(phase.id);
+        return next;
+      });
     }
   };
 
@@ -426,7 +458,7 @@ function TaskPhases({ taskId, onPhaseChange }) {
       {totalPhases > 0 && (
         <div className="task-phases__progress-section">
           <div className="task-phases__progress-labels">
-            <span className="task-phases__progress-title">Progress</span>
+            <span className="task-phases__progress-title">Phase Progress</span>
             <span className="task-phases__progress-value">{progressPercent}%</span>
           </div>
           <div
@@ -435,11 +467,15 @@ function TaskPhases({ taskId, onPhaseChange }) {
             aria-valuenow={progressPercent}
             aria-valuemin="0"
             aria-valuemax="100"
+            aria-label="Phase Progress"
           >
             <div
               className="task-phases__progress-bar-fill"
               style={{ width: `${progressPercent}%` }}
             />
+          </div>
+          <div className="task-phases__progress-subtext">
+            {completedPhases} of {totalPhases} phases completed
           </div>
         </div>
       )}
@@ -721,15 +757,14 @@ function TaskPhases({ taskId, onPhaseChange }) {
         <div className="task-phases__list">
           {phases.map((phase, index) => {
             const isCompleted = phase.status === "completed";
-            const statusMeta = PHASE_STATUS_META[phase.status] || PHASE_STATUS_META.todo;
-            const StatusIcon = statusMeta.icon;
+            const isUpdating = updatingPhaseIds.has(phase.id);
 
             return (
               <div
                 key={phase.id}
                 className={`task-phases__item ${
                   isCompleted ? "task-phases__item--completed" : ""
-                }`}
+                } ${isUpdating ? "task-phases__item--updating" : ""}`}
               >
                 <div className="task-phases__item-left">
                   <button
@@ -738,11 +773,21 @@ function TaskPhases({ taskId, onPhaseChange }) {
                       isCompleted ? "task-phases__check-btn--checked" : ""
                     }`}
                     onClick={() => handleToggleComplete(phase)}
+                    disabled={isUpdating}
                     aria-label={
-                      isCompleted ? `Mark "${phase.title}" as incomplete` : `Mark "${phase.title}" as completed`
+                      isCompleted
+                        ? `Reopen phase "${phase.title}"`
+                        : `Complete phase "${phase.title}"`
+                    }
+                    title={
+                      isCompleted
+                        ? "Click to reopen phase"
+                        : "Click to mark as completed"
                     }
                   >
-                    {isCompleted ? (
+                    {isUpdating ? (
+                      <Spinner size="xs" label="Updating" />
+                    ) : isCompleted ? (
                       <Check size={14} className="task-phases__check-icon" aria-hidden="true" />
                     ) : (
                       <Circle size={14} className="task-phases__uncheck-icon" aria-hidden="true" />
@@ -762,15 +807,38 @@ function TaskPhases({ taskId, onPhaseChange }) {
                     {phase.description && (
                       <p className="task-phases__item-desc">{phase.description}</p>
                     )}
+                    <div className="task-phases__item-status-meta">
+                      {isCompleted ? (
+                        <span className="task-phases__status-badge task-phases__status-badge--completed">
+                          <Check size={12} aria-hidden="true" />
+                          <span>Completed</span>
+                          {phase.completed_at && (
+                            <span
+                              className="task-phases__completed-timestamp"
+                              title={formatAbsoluteDate(phase.completed_at)}
+                            >
+                              · {formatActivityTime(phase.completed_at)}
+                            </span>
+                          )}
+                        </span>
+                      ) : (
+                        <span
+                          className={`task-phases__status-badge task-phases__status-badge--${phase.status}`}
+                        >
+                          Status: {phase.status === "in_progress" ? "In Progress" : "To Do"}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
                 <div className="task-phases__item-right">
                   <div className="task-phases__status-select-wrap">
                     <select
-                      className="task-phases__status-select"
+                      className={`task-phases__status-select task-phases__status-select--${phase.status}`}
                       value={phase.status}
                       onChange={(e) => handleStatusChange(phase, e.target.value)}
+                      disabled={isUpdating}
                       aria-label={`Status for ${phase.title}`}
                     >
                       <option value="todo">To Do</option>
@@ -784,7 +852,7 @@ function TaskPhases({ taskId, onPhaseChange }) {
                       type="button"
                       className="task-phases__icon-btn"
                       onClick={() => handleMoveOrder(index, "up")}
-                      disabled={index === 0}
+                      disabled={index === 0 || isUpdating}
                       aria-label="Move phase up"
                       title="Move up"
                     >
@@ -794,7 +862,7 @@ function TaskPhases({ taskId, onPhaseChange }) {
                       type="button"
                       className="task-phases__icon-btn"
                       onClick={() => handleMoveOrder(index, "down")}
-                      disabled={index === phases.length - 1}
+                      disabled={index === phases.length - 1 || isUpdating}
                       aria-label="Move phase down"
                       title="Move down"
                     >
@@ -806,6 +874,7 @@ function TaskPhases({ taskId, onPhaseChange }) {
                     type="button"
                     className="task-phases__icon-btn"
                     onClick={() => openEditModal(phase)}
+                    disabled={isUpdating}
                     aria-label={`Edit ${phase.title}`}
                     title="Edit phase"
                   >
@@ -816,7 +885,7 @@ function TaskPhases({ taskId, onPhaseChange }) {
                     type="button"
                     className="task-phases__icon-btn task-phases__icon-btn--danger"
                     onClick={() => handleDelete(phase.id)}
-                    disabled={deletingId === phase.id}
+                    disabled={deletingId === phase.id || isUpdating}
                     aria-label={`Delete ${phase.title}`}
                     title="Delete phase"
                   >
