@@ -18,6 +18,8 @@ from app.ai.task_understanding.service import analyze_task_understanding
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.user import User
+from app.notes import service as notes_service
+from app.notes.schemas import NoteResponse
 from app.projects.service import get_owned_project
 from app.tasks import service
 from app.tasks.schemas import (
@@ -408,5 +410,20 @@ def regenerate_task_endpoint(
         provider=ai_provider,
         instruction=instruction,
     )
+
+
+@router.get("/tasks/{task_id}/notes", response_model=List[NoteResponse])
+def get_task_notes_endpoint(
+    task_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> List[NoteResponse]:
+    """
+    Get all notes belonging to a specific task owned by the authenticated user.
+    """
+    return notes_service.list_task_notes(
+        db=db, user_id=current_user.id, task_id=task_id
+    )
+
 
 

@@ -30,5 +30,7 @@ class Project(Base, TimestampMixin):
     tasks: Mapped[List["Task"]] = relationship(
         back_populates="project", cascade="all, delete-orphan", lazy="selectin"
     )
-    notes: Mapped[List["Note"]] = relationship(back_populates="project")
+    notes: Mapped[List["Note"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan", lazy="selectin"
+    )
     conversations: Mapped[List["Conversation"]] = relationship(back_populates="project")

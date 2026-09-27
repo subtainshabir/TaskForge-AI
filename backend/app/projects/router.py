@@ -9,6 +9,8 @@ from app.ai.project_intelligence.schemas import ProjectProgressIntelligenceRespo
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.user import User
+from app.notes import service as notes_service
+from app.notes.schemas import NoteResponse
 from app.projects import service
 from app.projects.schemas import (
     ProjectCreate,
@@ -109,4 +111,18 @@ def get_project_progress_intelligence_alias(
         user_id=current_user.id,
         project_id=project_id,
         provider=ai_provider,
+    )
+
+
+@router.get("/{project_id}/notes", response_model=List[NoteResponse])
+def get_project_notes_endpoint(
+    project_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> List[NoteResponse]:
+    """
+    Get all notes belonging to a specific project owned by the authenticated user.
+    """
+    return notes_service.list_project_notes(
+        db=db, user_id=current_user.id, project_id=project_id
     )

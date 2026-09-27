@@ -55,7 +55,9 @@ class Task(Base, TimestampMixin):
         order_by="Phase.order_index",
         lazy="selectin",
     )
-    notes: Mapped[List["Note"]] = relationship(back_populates="task")
+    notes: Mapped[List["Note"]] = relationship(
+        back_populates="task", cascade="all, delete-orphan", lazy="selectin"
+    )
     conversations: Mapped[List["Conversation"]] = relationship(back_populates="task")
     dependencies: Mapped[List["TaskDependency"]] = relationship(
         "TaskDependency",
