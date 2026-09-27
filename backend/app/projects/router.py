@@ -3,6 +3,9 @@ from typing import List, Literal, Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
+from app.ai.base import AIProvider
+from app.ai.factory import get_ai_provider
+from app.ai.project_intelligence.schemas import ProjectProgressIntelligenceResponse
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.user import User
@@ -67,3 +70,43 @@ def delete_project(
 ) -> None:
     project = service.get_owned_project(db, current_user.id, project_id)
     service.delete_project(db, project)
+
+
+@router.post(
+    "/{project_id}/ai/progress-insights",
+    response_model=ProjectProgressIntelligenceResponse,
+)
+def get_project_progress_intelligence_endpoint(
+    project_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    ai_provider: AIProvider = Depends(get_ai_provider),
+) -> ProjectProgressIntelligenceResponse:
+    """
+    Generate evidence-based AI Project Progress Intelligence for a specific project.
+    """
+    return service.get_project_progress_intelligence(
+        db=db,
+        user_id=current_user.id,
+        project_id=project_id,
+        provider=ai_provider,
+    )
+
+
+@router.post(
+    "/{project_id}/ai/progress-intelligence",
+    response_model=ProjectProgressIntelligenceResponse,
+    include_in_schema=False,
+)
+def get_project_progress_intelligence_alias(
+    project_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    ai_provider: AIProvider = Depends(get_ai_provider),
+) -> ProjectProgressIntelligenceResponse:
+    return service.get_project_progress_intelligence(
+        db=db,
+        user_id=current_user.id,
+        project_id=project_id,
+        provider=ai_provider,
+    )

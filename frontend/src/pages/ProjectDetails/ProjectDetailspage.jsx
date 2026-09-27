@@ -21,6 +21,7 @@ import ProjectForm from "../../components/projects/ProjectForm/ProjectForm.jsx";
 import DeleteProjectDialog from "../../components/projects/DeleteProjectDialog/DeleteProjectDialog.jsx";
 import ProjectTasksPanel from "../../components/tasks/ProjectTasksPanel/ProjectTasksPanel.jsx";
 import TaskAISuggestions from "../../components/tasks/TaskAISuggestions/TaskAISuggestions.jsx";
+import ProjectProgressIntelligence from "../../components/projects/ProjectProgressIntelligence/ProjectProgressIntelligence.jsx";
 import { projectService } from "../../services/projectService.js";
 import { analyticsService } from "../../services/analyticsService.js";
 import { apiErrorMessage } from "../../utils/apiErrorMessage.js";
@@ -189,8 +190,9 @@ function ProjectDetailsPage({ initialSection }) {
       ) : activeSection === "ai" ? (
         <TaskAISuggestions projectId={project.id} autoFetch />
       ) : (
-        <Card>
-          <h2 className="project-details__section-title">Overview</h2>
+        <>
+          <Card>
+            <h2 className="project-details__section-title">Overview</h2>
           <p className="project-details__description">
             {project.description || "No description provided."}
           </p>
@@ -259,6 +261,13 @@ function ProjectDetailsPage({ initialSection }) {
             </div>
           )}
         </Card>
+
+        <ProjectProgressIntelligence
+          projectId={project.id}
+          totalTasks={projectAnalytics?.overview?.total_tasks ?? 0}
+          completedTasks={projectAnalytics?.overview?.completed_tasks ?? 0}
+        />
+        </>
       )}
 
       <Modal

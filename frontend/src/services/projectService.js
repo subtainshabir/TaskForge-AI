@@ -48,4 +48,10 @@ export const projectService = {
       body: JSON.stringify({ suggestions }),
     });
   },
+
+  getProgressInsights(projectId) {
+    return apiClient.request(`/projects/${projectId}/ai/progress-insights`, {
+      method: "POST",
+    });
+  },
 };

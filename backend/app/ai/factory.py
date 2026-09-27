@@ -40,6 +40,116 @@ class MockAIProvider(AIProvider):
 
         lower_text = f"{title} {description}".lower()
 
+        # Check if requested to generate AI project progress intelligence
+        if system_prompt and any(w in system_prompt.lower() for w in ["project progress intelligence", "project intelligence engine", "specific project's current state"]):
+            if "[FORCE_INVALID_PROJECT_INTELLIGENCE]" in prompt:
+                return "Not valid JSON"
+            if "[FORCE_EMPTY_PROJECT_INTELLIGENCE]" in prompt:
+                return json.dumps({
+                    "project_summary": "No project progress data available yet. Add tasks to generate project intelligence.",
+                    "overall_progress": 0,
+                    "insights": [],
+                })
+
+            total_tasks = 0
+            completed_tasks = 0
+            in_progress_tasks = 0
+            todo_tasks = 0
+            avg_progress = 0
+            proj_name = "This project"
+
+            for line in prompt.splitlines():
+                if line.startswith("PROJECT:"):
+                    proj_name = line.replace("PROJECT:", "").strip()
+                elif "- Total Tasks:" in line:
+                    try:
+                        total_tasks = int(line.split("- Total Tasks:")[1].strip())
+                    except ValueError:
+                        pass
+                elif "- Completed Tasks:" in line:
+                    try:
+                        completed_tasks = int(line.split("- Completed Tasks:")[1].strip())
+                    except ValueError:
+                        pass
+                elif "- In-Progress Tasks:" in line:
+                    try:
+                        in_progress_tasks = int(line.split("- In-Progress Tasks:")[1].strip())
+                    except ValueError:
+                        pass
+                elif "- Todo (Not Started) Tasks:" in line:
+                    try:
+                        todo_tasks = int(line.split("- Todo (Not Started) Tasks:")[1].strip())
+                    except ValueError:
+                        pass
+                elif "- Average Task Progress:" in line:
+                    try:
+                        val = line.split("- Average Task Progress:")[1].replace("%", "").strip()
+                        avg_progress = int(val)
+                    except ValueError:
+                        pass
+
+            if total_tasks == 0:
+                return json.dumps({
+                    "project_summary": "No project progress data available yet. Add tasks to generate project intelligence.",
+                    "overall_progress": 0,
+                    "insights": [],
+                })
+
+            insights = []
+            if "HIGH-PRIORITY INCOMPLETE WORK (" in prompt:
+                insights.append({
+                    "type": "priority",
+                    "title": "High-priority work remains incomplete",
+                    "description": "High-priority tasks remain below 100% progress and require attention.",
+                    "severity": "medium",
+                })
+
+            if "DEADLINE OBSERVATIONS:" in prompt and ("Overdue" in prompt or "Approaching" in prompt):
+                insights.append({
+                    "type": "deadline",
+                    "title": "Tasks with approaching deadlines need attention",
+                    "description": "Active tasks in this project have approaching deadlines in the near schedule.",
+                    "severity": "high",
+                })
+
+            if "STALLED / LOW PROGRESS ACTIVE TASKS (" in prompt:
+                insights.append({
+                    "type": "bottleneck",
+                    "title": "Active tasks show limited progress",
+                    "description": "Several in-progress tasks currently remain below 25% phase progress.",
+                    "severity": "medium",
+                })
+
+            if todo_tasks > 0:
+                insights.append({
+                    "type": "workload",
+                    "title": "Workload distribution across stages",
+                    "description": f"{todo_tasks} tasks remain in todo status awaiting kickoff, while {in_progress_tasks} are in progress.",
+                    "severity": "info",
+                })
+
+            if completed_tasks > 0:
+                insights.append({
+                    "type": "positive",
+                    "title": f"{completed_tasks} of {total_tasks} tasks completed",
+                    "description": f"{completed_tasks} tasks have reached 100% completion in {proj_name}.",
+                    "severity": "info",
+                })
+
+            insights.append({
+                "type": "progress",
+                "title": f"Project progress stands at {avg_progress}%",
+                "description": f"Currently, {completed_tasks} tasks are finished and {in_progress_tasks} tasks are actively underway.",
+                "severity": "info",
+            })
+
+            summary = f"{proj_name} is currently at {avg_progress}% progress with {completed_tasks} of {total_tasks} tasks completed."
+            return json.dumps({
+                "project_summary": summary,
+                "overall_progress": avg_progress,
+                "insights": insights,
+            })
+
         # Check if requested to generate AI progress insights
         if system_prompt and any(w in system_prompt.lower() for w in ["progress analysis engine", "progress insight", "progress data to provide useful"]):
             if "[FORCE_INVALID_PROGRESS_INSIGHTS]" in prompt:
