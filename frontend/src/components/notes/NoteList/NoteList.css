@@ -1,0 +1,21 @@
+.note-list-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-4);
+  width: 100%;
+}
+
+.note-list__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8);
+  min-height: 180px;
+}
+
+@media (max-width: 640px) {
+  .note-list-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
+}

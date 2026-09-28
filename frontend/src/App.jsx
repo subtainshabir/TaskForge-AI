@@ -10,6 +10,8 @@ import ProjectsPage from "./pages/Projects/ProjectsPage.jsx";
 import ProjectDetailsPage from "./pages/ProjectDetails/ProjectDetailsPage.jsx";
 import TaskDetailsPage from "./pages/TaskDetails/TaskDetailsPage.jsx";
 import TasksPage from "./pages/Tasks/TasksPage.jsx";
+import NotesPage from "./pages/Notes/NotesPage.jsx";
+import NoteDetailPage from "./pages/Notes/NoteDetailPage.jsx";
 import ProtectedRoute from "./routes/ProtectedRoute.jsx";
 import PublicOnlyRoute from "./routes/PublicOnlyRoute.jsx";
 
@@ -32,6 +34,8 @@ function App() {
                 <Route path="/projects/:projectId/tasks" element={<ProjectDetailsPage initialSection="tasks" />} />
                 <Route path="/projects/:projectId/tasks/:taskId" element={<TaskDetailsPage />} />
                 <Route path="/tasks" element={<TasksPage />} />
+                <Route path="/notes" element={<NotesPage />} />
+                <Route path="/notes/:noteId" element={<NoteDetailPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
               </Route>
             </Route>

@@ -1,0 +1,175 @@
+.note-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 160px;
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+  outline: none;
+  position: relative;
+}
+
+.note-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-md);
+}
+
+.note-card:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+
+.note-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.note-card__title-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  flex: 1;
+}
+
+.note-card__icon {
+  flex-shrink: 0;
+  color: var(--color-accent);
+}
+
+.note-card__title {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-card__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+.note-card__action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.note-card__action-btn:hover {
+  background-color: var(--color-canvas);
+  color: var(--color-text-primary);
+}
+
+.note-card__action-btn--danger:hover {
+  background-color: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.note-card__content {
+  flex: 1;
+  margin-bottom: var(--space-3);
+}
+
+.note-card__preview {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--leading-normal);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+  white-space: pre-line;
+}
+
+.note-card__empty-text {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}
+
+.note-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+
+.note-card__badges {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.note-card__badge-link {
+  text-decoration: none;
+  display: inline-flex;
+  max-width: 160px;
+}
+
+.note-card__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  font-size: var(--text-xs);
+  max-width: 100%;
+}
+
+.note-card__badge--task {
+  border-color: rgba(76, 95, 213, 0.3);
+  color: var(--color-ai);
+}
+
+.note-card__badge-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-card__general-tag {
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+  background: var(--color-canvas);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.note-card__time {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+}

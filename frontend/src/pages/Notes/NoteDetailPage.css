@@ -1,0 +1,102 @@
+.note-detail__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-12);
+  min-height: 200px;
+}
+
+.note-detail__back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  margin-bottom: var(--space-4);
+  transition: color var(--transition-fast);
+}
+
+.note-detail__back:hover {
+  color: var(--color-text-primary);
+}
+
+.note-detail__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.note-detail__card {
+  padding: var(--space-6);
+}
+
+.note-detail__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding-bottom: var(--space-4);
+  margin-bottom: var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.note-detail__associations {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.note-detail__badge-link {
+  text-decoration: none;
+}
+
+.note-detail__task-badge {
+  border-color: rgba(76, 95, 213, 0.3);
+  color: var(--color-ai);
+}
+
+.note-detail__general-badge {
+  font-size: var(--text-xs);
+  padding: 2px 8px;
+  background: var(--color-canvas);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+}
+
+.note-detail__timestamps {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+  flex-wrap: wrap;
+}
+
+.note-detail__timestamps span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.note-detail__body {
+  min-height: 180px;
+}
+
+.note-detail__content {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--color-text-primary);
+  line-height: var(--leading-relaxed);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.note-detail__empty-content {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}

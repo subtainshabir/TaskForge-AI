@@ -22,6 +22,7 @@ import DeleteProjectDialog from "../../components/projects/DeleteProjectDialog/D
 import ProjectTasksPanel from "../../components/tasks/ProjectTasksPanel/ProjectTasksPanel.jsx";
 import TaskAISuggestions from "../../components/tasks/TaskAISuggestions/TaskAISuggestions.jsx";
 import ProjectProgressIntelligence from "../../components/projects/ProjectProgressIntelligence/ProjectProgressIntelligence.jsx";
+import NotesSection from "../../components/notes/NotesSection/NotesSection.jsx";
 import { projectService } from "../../services/projectService.js";
 import { analyticsService } from "../../services/analyticsService.js";
 import { apiErrorMessage } from "../../utils/apiErrorMessage.js";
@@ -32,7 +33,7 @@ import "./ProjectDetailsPage.css";
 const SECTIONS = [
   { id: "overview", label: "Overview", icon: LayoutList, enabled: true },
   { id: "tasks", label: "Tasks", icon: CheckSquare, enabled: true },
-  { id: "notes", label: "Notes", icon: StickyNote, enabled: false },
+  { id: "notes", label: "Notes", icon: StickyNote, enabled: true },
   { id: "ai", label: "AI Suggestions", icon: Sparkles, enabled: true },
   { id: "activity", label: "Activity", icon: Activity, enabled: false },
 ];
@@ -187,6 +188,15 @@ function ProjectDetailsPage({ initialSection }) {
 
       {activeSection === "tasks" ? (
         <ProjectTasksPanel projectId={project.id} />
+      ) : activeSection === "notes" ? (
+        <NotesSection
+          projectId={project.id}
+          projectName={project.name}
+          title="Project Notes"
+          description={`Notes and documentation for ${project.name}`}
+          showProject={false}
+          showTask={true}
+        />
       ) : activeSection === "ai" ? (
         <TaskAISuggestions projectId={project.id} autoFetch />
       ) : (

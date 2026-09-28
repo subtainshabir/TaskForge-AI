@@ -21,6 +21,7 @@ import TaskAIQuality from "../../components/tasks/TaskAIQuality/TaskAIQuality.js
 import TaskAISuggestions from "../../components/tasks/TaskAISuggestions/TaskAISuggestions.jsx";
 import TaskAIRegenerateModal from "../../components/tasks/TaskAIRegenerate/TaskAIRegenerateModal.jsx";
 import TaskActivity from "../../components/tasks/TaskActivity/TaskActivity.jsx";
+import NotesSection from "../../components/notes/NotesSection/NotesSection.jsx";
 import { taskService } from "../../services/taskService.js";
 import { projectService } from "../../services/projectService.js";
 import { apiErrorMessage } from "../../utils/apiErrorMessage.js";
@@ -246,6 +247,17 @@ function TaskDetailsPage() {
       />
 
       <TaskPhases taskId={taskId} onPhaseChange={handlePhaseChange} />
+
+      <NotesSection
+        taskId={Number(taskId)}
+        projectId={task.project_id || (projectId ? Number(projectId) : null)}
+        taskTitle={task.title}
+        projectName={project?.name}
+        title="Task Notes"
+        description={`Notes and scratchpads for "${task.title}"`}
+        showProject={false}
+        showTask={false}
+      />
 
       <TaskAIAnalysis taskId={taskId} />
 
