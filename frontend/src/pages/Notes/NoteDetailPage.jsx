@@ -9,6 +9,7 @@ import {
   Pencil,
   Trash2,
   StickyNote,
+  Sparkles,
 } from "lucide-react";
 import PageContainer from "../../components/PageContainer/PageContainer.jsx";
 import Card from "../../components/Card/Card.jsx";
@@ -20,6 +21,7 @@ import { ErrorState } from "../../components/StatePanel/StatePanel.jsx";
 import NoteForm from "../../components/notes/NoteForm/NoteForm.jsx";
 import DeleteNoteDialog from "../../components/notes/DeleteNoteDialog/DeleteNoteDialog.jsx";
 import RichTextViewer from "../../components/notes/RichTextViewer/RichTextViewer.jsx";
+import NoteAISummary from "../../components/notes/NoteAISummary/NoteAISummary.jsx";
 import { noteService } from "../../services/noteService.js";
 import { apiErrorMessage } from "../../utils/apiErrorMessage.js";
 import { formatAbsoluteDate, formatActivityTime } from "../../utils/date.js";
@@ -33,6 +35,10 @@ function NoteDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const [aiSummary, setAiSummary] = useState(null);
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [summaryError, setSummaryError] = useState("");
+
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -43,6 +49,8 @@ function NoteDetailPage() {
   const loadNote = useCallback(async () => {
     setIsLoading(true);
     setError("");
+    setAiSummary(null);
+    setSummaryError("");
     try {
       const data = await noteService.get(noteId);
       setNote(data);
@@ -61,6 +69,19 @@ function NoteDetailPage() {
   useEffect(() => {
     loadNote();
   }, [loadNote]);
+
+  async function handleSummarize() {
+    setIsSummarizing(true);
+    setSummaryError("");
+    try {
+      const summary = await noteService.summarizeWithAI(noteId);
+      setAiSummary(summary);
+    } catch (err) {
+      setSummaryError(apiErrorMessage(err, "Failed to generate AI summary."));
+    } finally {
+      setIsSummarizing(false);
+    }
+  }
 
   async function handleUpdate(payload) {
     setIsSaving(true);
@@ -137,6 +158,20 @@ function NoteDetailPage() {
       title={note.title}
       actions={
         <div className="note-detail__actions">
+          <Button
+            variant="secondary"
+            className="note-detail__ai-btn"
+            onClick={handleSummarize}
+            disabled={isSummarizing}
+            title="Summarize this note with AI"
+          >
+            {isSummarizing ? (
+              <Spinner size="sm" />
+            ) : (
+              <Sparkles size={16} aria-hidden="true" className="note-detail__ai-icon" />
+            )}
+            <span>{isSummarizing ? "Summarizing..." : "Summarize with AI"}</span>
+          </Button>
           <Button variant="secondary" onClick={() => setIsEditOpen(true)}>
             <Pencil size={16} aria-hidden="true" />
             Edit
@@ -152,6 +187,17 @@ function NoteDetailPage() {
         <ArrowLeft size={14} aria-hidden="true" />
         Back to Notes
       </Link>
+
+      <NoteAISummary
+        summary={aiSummary}
+        isLoading={isSummarizing}
+        error={summaryError}
+        onRegenerate={handleSummarize}
+        onClose={() => {
+          setAiSummary(null);
+          setSummaryError("");
+        }}
+      />
 
       <Card className="note-detail__card">
         <div className="note-detail__meta">

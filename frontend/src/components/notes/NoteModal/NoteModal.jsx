@@ -1,9 +1,22 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { FolderKanban, CheckSquare, Clock, Calendar, Pencil, Trash2, ExternalLink } from "lucide-react";
+import {
+  FolderKanban,
+  CheckSquare,
+  Clock,
+  Calendar,
+  Pencil,
+  Trash2,
+  ExternalLink,
+  Sparkles,
+} from "lucide-react";
 import Modal from "../../Modal/Modal.jsx";
 import Button from "../../Button/Button.jsx";
 import Badge from "../../Badge/Badge.jsx";
 import RichTextViewer from "../RichTextViewer/RichTextViewer.jsx";
+import NoteAISummary from "../NoteAISummary/NoteAISummary.jsx";
+import { noteService } from "../../../services/noteService.js";
+import { apiErrorMessage } from "../../../utils/apiErrorMessage.js";
 import { formatAbsoluteDate, formatActivityTime } from "../../../utils/date.js";
 import "./NoteModal.css";
 
@@ -15,6 +28,30 @@ function NoteModal({
   onDelete,
   onCheckboxToggle,
 }) {
+  const [aiSummary, setAiSummary] = useState(null);
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [summaryError, setSummaryError] = useState("");
+
+  // Reset summary state when opening a different note
+  useEffect(() => {
+    setAiSummary(null);
+    setIsSummarizing(false);
+    setSummaryError("");
+  }, [note?.id]);
+
+  async function handleSummarize() {
+    if (!note?.id) return;
+    setIsSummarizing(true);
+    setSummaryError("");
+    try {
+      const result = await noteService.summarizeWithAI(note.id);
+      setAiSummary(result);
+    } catch (err) {
+      setSummaryError(apiErrorMessage(err, "Failed to generate AI summary."));
+    } finally {
+      setIsSummarizing(false);
+    }
+  }
   if (!note) return null;
 
   const hasProject = Boolean(note.project_id);
@@ -36,6 +73,17 @@ function NoteModal({
             <span>Dedicated page</span>
           </Link>
           <div className="note-modal__right-actions">
+            <Button
+              type="button"
+              variant="secondary"
+              className="note-modal__ai-btn"
+              disabled={isSummarizing}
+              loading={isSummarizing}
+              onClick={handleSummarize}
+            >
+              <Sparkles size={14} aria-hidden="true" />
+              Summarize
+            </Button>
             {onDelete && (
               <Button
                 type="button"
@@ -115,6 +163,17 @@ function NoteModal({
           </span>
         </div>
       </div>
+
+      <NoteAISummary
+        summary={aiSummary}
+        isLoading={isSummarizing}
+        error={summaryError}
+        onRegenerate={handleSummarize}
+        onClose={() => {
+          setAiSummary(null);
+          setSummaryError("");
+        }}
+      />
 
       <div className="note-modal__content">
         <RichTextViewer

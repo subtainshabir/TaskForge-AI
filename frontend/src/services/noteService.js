@@ -45,4 +45,10 @@ export const noteService = {
   listTaskNotes(taskId) {
     return apiClient.request(`/tasks/${taskId}/notes`);
   },
+
+  summarizeWithAI(noteId) {
+    return apiClient.request(`/notes/${noteId}/ai/summarize`, {
+      method: "POST",
+    });
+  },
 };

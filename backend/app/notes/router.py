@@ -3,6 +3,10 @@ from typing import List, Literal, Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
+from app.ai.base import AIProvider
+from app.ai.factory import get_ai_provider
+from app.ai.note_summarization.schemas import NoteSummaryResponse
+from app.ai.note_summarization.service import summarize_note_ai
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.user import User
@@ -95,3 +99,23 @@ def delete_note_endpoint(
     """
     note = service.get_owned_note(db=db, user_id=current_user.id, note_id=note_id)
     service.delete_note(db=db, note=note)
+
+
+@router.post("/{note_id}/ai/summarize", response_model=NoteSummaryResponse)
+def summarize_note_endpoint(
+    note_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    ai_provider: AIProvider = Depends(get_ai_provider),
+) -> NoteSummaryResponse:
+    """
+    Generate an evidence-based, structured AI summary of an existing note owned by the authenticated user.
+    Does not modify the original note.
+    """
+    note = service.get_owned_note(db=db, user_id=current_user.id, note_id=note_id)
+    return summarize_note_ai(
+        title=note.title,
+        content=note.content,
+        provider=ai_provider,
+    )
+

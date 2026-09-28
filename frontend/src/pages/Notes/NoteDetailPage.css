@@ -100,3 +100,13 @@
   color: var(--color-text-tertiary);
   font-style: italic;
 }
+
+.note-detail__ai-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.note-detail__ai-icon {
+  color: var(--color-ai);
+}
