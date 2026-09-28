@@ -2,6 +2,7 @@ import { FolderKanban, CheckSquare, Clock, Pencil, Trash2, StickyNote } from "lu
 import { Link } from "react-router-dom";
 import Badge from "../../Badge/Badge.jsx";
 import { formatActivityTime } from "../../../utils/date.js";
+import { extractTextPreview } from "../../../utils/sanitizeHtml.js";
 import "./NoteCard.css";
 
 function NoteCard({
@@ -14,6 +15,7 @@ function NoteCard({
 }) {
   const hasProject = Boolean(note.project_id);
   const hasTask = Boolean(note.task_id);
+  const previewText = extractTextPreview(note.content, 180);
 
   function handleCardClick() {
     if (onView) onView(note);
@@ -69,8 +71,8 @@ function NoteCard({
       </div>
 
       <div className="note-card__content">
-        {note.content ? (
-          <p className="note-card__preview">{note.content}</p>
+        {previewText ? (
+          <p className="note-card__preview">{previewText}</p>
         ) : (
           <p className="note-card__empty-text">No additional content</p>
         )}

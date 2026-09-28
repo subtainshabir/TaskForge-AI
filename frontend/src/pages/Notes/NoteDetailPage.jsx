@@ -19,6 +19,7 @@ import Spinner from "../../components/Spinner/Spinner.jsx";
 import { ErrorState } from "../../components/StatePanel/StatePanel.jsx";
 import NoteForm from "../../components/notes/NoteForm/NoteForm.jsx";
 import DeleteNoteDialog from "../../components/notes/DeleteNoteDialog/DeleteNoteDialog.jsx";
+import RichTextViewer from "../../components/notes/RichTextViewer/RichTextViewer.jsx";
 import { noteService } from "../../services/noteService.js";
 import { apiErrorMessage } from "../../utils/apiErrorMessage.js";
 import { formatAbsoluteDate, formatActivityTime } from "../../utils/date.js";
@@ -85,6 +86,15 @@ function NoteDetailPage() {
       setDeleteError(apiErrorMessage(err, "Failed to delete note."));
     } finally {
       setIsDeleting(false);
+    }
+  }
+
+  async function handleCheckboxToggle(updatedContent) {
+    try {
+      const updated = await noteService.update(noteId, { content: updatedContent });
+      setNote(updated);
+    } catch {
+      // Ignore background sync failure
     }
   }
 
@@ -192,13 +202,11 @@ function NoteDetailPage() {
         </div>
 
         <div className="note-detail__body">
-          {note.content ? (
-            <p className="note-detail__content">{note.content}</p>
-          ) : (
-            <p className="note-detail__empty-content">
-              This note does not have any content. Click Edit to add details.
-            </p>
-          )}
+          <RichTextViewer
+            content={note.content}
+            onCheckboxToggle={handleCheckboxToggle}
+            emptyMessage="This note does not have any content. Click Edit to add details."
+          />
         </div>
       </Card>
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { AlertCircle, FolderKanban, CheckSquare } from "lucide-react";
 import Input from "../../Input/Input.jsx";
-import Textarea from "../../Textarea/Textarea.jsx";
+import RichTextEditor from "../RichTextEditor/RichTextEditor.jsx";
 import Button from "../../Button/Button.jsx";
 import Badge from "../../Badge/Badge.jsx";
 import { projectService } from "../../../services/projectService.js";
@@ -138,15 +138,18 @@ function NoteForm({
         required
       />
 
-      <Textarea
-        label="Content"
-        value={content}
-        onChange={(event) => setContent(event.target.value)}
-        placeholder="Write note details, checklists, references, or reminders..."
-        rows={6}
-        maxLength={50000}
-        hint="Optional. Plain text is supported."
-      />
+      <div className="field">
+        <label className="field__label">Content</label>
+        <RichTextEditor
+          value={content}
+          onChange={(html) => setContent(html)}
+          placeholder="Write note details, checklists, references, or reminders..."
+          disabled={isSubmitting}
+        />
+        <span className="field__hint">
+          Rich text formatting: headings, bold/italic/underline, lists, checklists, links, quotes, and code blocks.
+        </span>
+      </div>
 
       {isEdit ? (
         (initialValues?.project_name || initialValues?.task_title) && (

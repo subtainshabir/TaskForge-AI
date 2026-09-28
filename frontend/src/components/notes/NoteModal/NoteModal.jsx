@@ -3,6 +3,7 @@ import { FolderKanban, CheckSquare, Clock, Calendar, Pencil, Trash2, ExternalLin
 import Modal from "../../Modal/Modal.jsx";
 import Button from "../../Button/Button.jsx";
 import Badge from "../../Badge/Badge.jsx";
+import RichTextViewer from "../RichTextViewer/RichTextViewer.jsx";
 import { formatAbsoluteDate, formatActivityTime } from "../../../utils/date.js";
 import "./NoteModal.css";
 
@@ -12,6 +13,7 @@ function NoteModal({
   onClose,
   onEdit,
   onDelete,
+  onCheckboxToggle,
 }) {
   if (!note) return null;
 
@@ -115,11 +117,11 @@ function NoteModal({
       </div>
 
       <div className="note-modal__content">
-        {note.content ? (
-          <p className="note-modal__text">{note.content}</p>
-        ) : (
-          <p className="note-modal__empty">No additional content in this note.</p>
-        )}
+        <RichTextViewer
+          content={note.content}
+          onCheckboxToggle={onCheckboxToggle}
+          emptyMessage="No additional content in this note."
+        />
       </div>
     </Modal>
   );

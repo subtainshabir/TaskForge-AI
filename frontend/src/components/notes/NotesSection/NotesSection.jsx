@@ -81,6 +81,18 @@ function NotesSection({
     }
   }
 
+  async function handleCheckboxToggle(noteId, updatedContent) {
+    try {
+      const updated = await noteService.update(noteId, { content: updatedContent });
+      replaceNote(updated);
+      if (viewingNote && viewingNote.id === noteId) {
+        setViewingNote(updated);
+      }
+    } catch {
+      // Ignore background sync failure
+    }
+  }
+
   return (
     <Card className="notes-section-card">
       <div className="notes-section__header">
@@ -198,6 +210,9 @@ function NotesSection({
         note={viewingNote}
         open={Boolean(viewingNote)}
         onClose={() => setViewingNote(null)}
+        onCheckboxToggle={(updatedHtml) =>
+          viewingNote && handleCheckboxToggle(viewingNote.id, updatedHtml)
+        }
         onEdit={(note) => {
           setViewingNote(null);
           setFormError("");
