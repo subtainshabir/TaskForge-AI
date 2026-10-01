@@ -10,6 +10,8 @@ import {
   Trash2,
   StickyNote,
   Sparkles,
+  FileSearch,
+  ListTodo,
 } from "lucide-react";
 import PageContainer from "../../components/PageContainer/PageContainer.jsx";
 import Card from "../../components/Card/Card.jsx";
@@ -22,6 +24,8 @@ import NoteForm from "../../components/notes/NoteForm/NoteForm.jsx";
 import DeleteNoteDialog from "../../components/notes/DeleteNoteDialog/DeleteNoteDialog.jsx";
 import RichTextViewer from "../../components/notes/RichTextViewer/RichTextViewer.jsx";
 import NoteAISummary from "../../components/notes/NoteAISummary/NoteAISummary.jsx";
+import NoteExtractionResult from "../../components/notes/NoteExtractionResult/NoteExtractionResult.jsx";
+import NoteTaskSuggestions from "../../components/notes/NoteTaskSuggestions/NoteTaskSuggestions.jsx";
 import { noteService } from "../../services/noteService.js";
 import { apiErrorMessage } from "../../utils/apiErrorMessage.js";
 import { formatAbsoluteDate, formatActivityTime } from "../../utils/date.js";
@@ -39,6 +43,14 @@ function NoteDetailPage() {
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summaryError, setSummaryError] = useState("");
 
+  const [aiExtraction, setAiExtraction] = useState(null);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractionError, setExtractionError] = useState("");
+
+  const [aiTaskSuggestions, setAiTaskSuggestions] = useState(null);
+  const [isSuggestingTasks, setIsSuggestingTasks] = useState(false);
+  const [taskSuggestionsError, setTaskSuggestionsError] = useState("");
+
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -51,6 +63,10 @@ function NoteDetailPage() {
     setError("");
     setAiSummary(null);
     setSummaryError("");
+    setAiExtraction(null);
+    setExtractionError("");
+    setAiTaskSuggestions(null);
+    setTaskSuggestionsError("");
     try {
       const data = await noteService.get(noteId);
       setNote(data);
@@ -80,6 +96,34 @@ function NoteDetailPage() {
       setSummaryError(apiErrorMessage(err, "Failed to generate AI summary."));
     } finally {
       setIsSummarizing(false);
+    }
+  }
+
+  async function handleExtract() {
+    setIsExtracting(true);
+    setExtractionError("");
+    try {
+      const result = await noteService.extractWithAI(noteId);
+      setAiExtraction(result);
+    } catch (err) {
+      setExtractionError(apiErrorMessage(err, "Failed to extract information with AI."));
+    } finally {
+      setIsExtracting(false);
+    }
+  }
+
+  async function handleSuggestTasks() {
+    setIsSuggestingTasks(true);
+    setTaskSuggestionsError("");
+    try {
+      const result = await noteService.suggestTasksWithAI(noteId);
+      setAiTaskSuggestions(result);
+    } catch (err) {
+      setTaskSuggestionsError(
+        apiErrorMessage(err, "Failed to analyze note for task suggestions.")
+      );
+    } finally {
+      setIsSuggestingTasks(false);
     }
   }
 
@@ -162,7 +206,7 @@ function NoteDetailPage() {
             variant="secondary"
             className="note-detail__ai-btn"
             onClick={handleSummarize}
-            disabled={isSummarizing}
+            disabled={isSummarizing || isExtracting || isSuggestingTasks}
             title="Summarize this note with AI"
           >
             {isSummarizing ? (
@@ -171,6 +215,34 @@ function NoteDetailPage() {
               <Sparkles size={16} aria-hidden="true" className="note-detail__ai-icon" />
             )}
             <span>{isSummarizing ? "Summarizing..." : "Summarize with AI"}</span>
+          </Button>
+          <Button
+            variant="secondary"
+            className="note-detail__ai-btn"
+            onClick={handleExtract}
+            disabled={isExtracting || isSummarizing || isSuggestingTasks}
+            title="Extract structured information with AI"
+          >
+            {isExtracting ? (
+              <Spinner size="sm" />
+            ) : (
+              <FileSearch size={16} aria-hidden="true" className="note-detail__ai-icon" />
+            )}
+            <span>{isExtracting ? "Extracting..." : "Extract with AI"}</span>
+          </Button>
+          <Button
+            variant="secondary"
+            className="note-detail__ai-btn note-detail__ai-btn--suggest"
+            onClick={handleSuggestTasks}
+            disabled={isSuggestingTasks || isSummarizing || isExtracting}
+            title="Suggest actionable tasks from this note with AI"
+          >
+            {isSuggestingTasks ? (
+              <Spinner size="sm" />
+            ) : (
+              <ListTodo size={16} aria-hidden="true" className="note-detail__ai-icon" />
+            )}
+            <span>{isSuggestingTasks ? "Analyzing..." : "Suggest Tasks"}</span>
           </Button>
           <Button variant="secondary" onClick={() => setIsEditOpen(true)}>
             <Pencil size={16} aria-hidden="true" />
@@ -196,6 +268,32 @@ function NoteDetailPage() {
         onClose={() => {
           setAiSummary(null);
           setSummaryError("");
+        }}
+      />
+
+      <NoteExtractionResult
+        extraction={aiExtraction}
+        isLoading={isExtracting}
+        error={extractionError}
+        onRegenerate={handleExtract}
+        onClose={() => {
+          setAiExtraction(null);
+          setExtractionError("");
+        }}
+      />
+
+      <NoteTaskSuggestions
+        suggestionsData={aiTaskSuggestions}
+        isLoading={isSuggestingTasks}
+        error={taskSuggestionsError}
+        onRegenerate={handleSuggestTasks}
+        onClose={() => {
+          setAiTaskSuggestions(null);
+          setTaskSuggestionsError("");
+        }}
+        currentNote={note}
+        onTasksCreated={() => {
+          loadNote();
         }}
       />
 

@@ -51,4 +51,16 @@ export const noteService = {
       method: "POST",
     });
   },
+
+  extractWithAI(noteId) {
+    return apiClient.request(`/notes/${noteId}/ai/extract`, {
+      method: "POST",
+    });
+  },
+
+  suggestTasksWithAI(noteId) {
+    return apiClient.request(`/notes/${noteId}/ai/task-suggestions`, {
+      method: "POST",
+    });
+  },
 };

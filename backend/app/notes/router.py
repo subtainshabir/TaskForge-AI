@@ -3,12 +3,19 @@ from typing import List, Literal, Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
+from sqlalchemy import select
+
 from app.ai.base import AIProvider
 from app.ai.factory import get_ai_provider
 from app.ai.note_summarization.schemas import NoteSummaryResponse
 from app.ai.note_summarization.service import summarize_note_ai
+from app.ai.note_extraction.schemas import NoteExtractionResponse
+from app.ai.note_extraction.service import extract_note_ai
+from app.ai.note_task_suggestions.schemas import TaskSuggestionResponse
+from app.ai.note_task_suggestions.service import suggest_tasks_from_note_ai
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
+from app.models.task import Task
 from app.models.user import User
 from app.notes import service
 from app.notes.schemas import NoteCreate, NoteResponse, NoteUpdate
@@ -118,4 +125,77 @@ def summarize_note_endpoint(
         content=note.content,
         provider=ai_provider,
     )
+
+
+@router.post("/{note_id}/ai/extract", response_model=NoteExtractionResponse)
+def extract_note_endpoint(
+    note_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    ai_provider: AIProvider = Depends(get_ai_provider),
+) -> NoteExtractionResponse:
+    """
+    Extract structured information (action items, decisions, facts, dates, people, tech terms, follow-ups)
+    from an existing note owned by the authenticated user.
+    Does not modify the original note or any other records.
+    """
+    note = service.get_owned_note(db=db, user_id=current_user.id, note_id=note_id)
+    return extract_note_ai(
+        title=note.title,
+        content=note.content,
+        provider=ai_provider,
+    )
+
+
+@router.post("/{note_id}/ai/task-suggestions", response_model=TaskSuggestionResponse)
+def suggest_tasks_endpoint(
+    note_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    ai_provider: AIProvider = Depends(get_ai_provider),
+) -> TaskSuggestionResponse:
+    """
+    Analyze note content and suggest actionable task candidates for user review.
+    Does not automatically create tasks or modify the original note.
+    """
+    note = service.get_owned_note(db=db, user_id=current_user.id, note_id=note_id)
+
+    # Determine project context:
+    # If the note belongs to a project (and not directly a task), default to that project.
+    # If the note belongs to a task, do NOT automatically assign project (user chooses).
+    # If general note, project is None.
+    suggested_project_id = None
+    suggested_project_name = None
+    if note.project_id is not None and note.task_id is None:
+        suggested_project_id = note.project_id
+        suggested_project_name = note.project_name
+
+    # Load relevant existing tasks for duplicate checking
+    project_for_tasks = note.project_id
+    if project_for_tasks is None and note.task is not None:
+        project_for_tasks = note.task.project_id
+
+    existing_task_titles: List[str] = []
+    if project_for_tasks is not None:
+        proj_tasks = db.execute(
+            select(Task.title).where(Task.project_id == project_for_tasks)
+        ).scalars().all()
+        existing_task_titles.extend([t for t in proj_tasks if t])
+
+    user_tasks = db.execute(
+        select(Task.title).where(Task.user_id == current_user.id).limit(100)
+    ).scalars().all()
+    for ut in user_tasks:
+        if ut and ut not in existing_task_titles:
+            existing_task_titles.append(ut)
+
+    return suggest_tasks_from_note_ai(
+        title=note.title,
+        content=note.content,
+        provider=ai_provider,
+        existing_tasks=existing_task_titles,
+        project_id=suggested_project_id,
+        project_name=suggested_project_name,
+    )
+
 

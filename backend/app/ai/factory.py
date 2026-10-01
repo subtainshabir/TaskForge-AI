@@ -40,6 +40,170 @@ class MockAIProvider(AIProvider):
 
         lower_text = f"{title} {description}".lower()
 
+        # Check if requested for Note Summarization
+        if system_prompt and "note summarization engine" in system_prompt.lower():
+            note_title = "Note"
+            note_content = ""
+            for line in prompt.splitlines():
+                if line.startswith("NOTE TITLE:"):
+                    note_title = line.replace("NOTE TITLE:", "").strip()
+                elif line.startswith("NOTE CONTENT:"):
+                    note_content = prompt.split("NOTE CONTENT:")[1].split("INSTRUCTIONS:")[0].strip()
+
+            summary = f"Summary of '{note_title}': The note details technical architecture and upcoming implementation tasks."
+            key_points = [
+                f"Core topic focuses on {note_title}",
+                "Outlines key design constraints and planned steps",
+            ]
+            action_items = []
+            important_details = []
+
+            for line in note_content.splitlines():
+                clean_l = line.strip("- *[]").strip()
+                if not clean_l:
+                    continue
+                if any(kw in clean_l.lower() for kw in ["implement", "test", "set up", "todo", "action", "verify"]):
+                    action_items.append(clean_l)
+                elif any(kw in clean_l.lower() for kw in ["postgresql", "fastapi", "jwt", "docker", "ttl", "deadline", "date"]):
+                    important_details.append(clean_l)
+
+            if not action_items:
+                action_items = ["Review note requirements"]
+            if not important_details:
+                important_details = [f"Refers to {note_title}"]
+
+            return json.dumps({
+                "summary": summary,
+                "key_points": key_points[:3],
+                "action_items": action_items[:4],
+                "important_details": important_details[:4],
+            })
+
+        # Check if requested for Note Information Extraction
+        if system_prompt and "note information extraction engine" in system_prompt.lower():
+            note_title = "Note"
+            note_content = ""
+            for line in prompt.splitlines():
+                if line.startswith("NOTE TITLE:"):
+                    note_title = line.replace("NOTE TITLE:", "").strip()
+                elif line.startswith("NOTE CONTENT:"):
+                    note_content = prompt.split("NOTE CONTENT:")[1].split("INSTRUCTIONS:")[0].strip()
+
+            action_items = []
+            decisions = []
+            important_facts = []
+            dates = []
+            people = []
+            technical_terms = []
+            follow_ups = []
+
+            for line in note_content.splitlines():
+                clean_l = line.strip("- *#>`").strip()
+                if not clean_l:
+                    continue
+                lower_l = clean_l.lower()
+
+                if "decided" in lower_l or "decision" in lower_l or "agreed" in lower_l:
+                    decisions.append(clean_l)
+                elif any(kw in lower_l for kw in ["implement", "test", "setup", "set up", "verify", "deploy", "[ ]", "[x]"]):
+                    priority = "high" if "high" in lower_l or "urgent" in lower_l else None
+                    action_items.append({
+                        "title": clean_l.replace("[x]", "").replace("[ ]", "").strip(),
+                        "details": None,
+                        "priority": priority,
+                    })
+                elif "follow-up" in lower_l or "investigate" in lower_l or "verify later" in lower_l:
+                    follow_ups.append(clean_l)
+                elif any(m in lower_l for m in ["october", "november", "december", "january", "february", "march", "april", "may", "june", "july", "august", "september", "friday", "monday", "deadline"]):
+                    dates.append({
+                        "text": clean_l,
+                        "date": None,
+                        "context": "Mentioned milestone or deadline",
+                    })
+                elif any(tech in lower_l for tech in ["postgresql", "fastapi", "jwt", "docker", "redis", "alembic", "react"]):
+                    important_facts.append(clean_l)
+
+            # Extract technical terms
+            tech_keywords = ["PostgreSQL", "FastAPI", "JWT", "Docker Compose", "Docker", "Redis", "Alembic", "React", "Python", "SQLAlchemy"]
+            for tk in tech_keywords:
+                if tk.lower() in note_content.lower():
+                    technical_terms.append(tk)
+
+            # Extract people
+            people_keywords = ["Alice", "Bob", "Charlie", "lead architect", "backend engineer", "DevOps team"]
+            for pk in people_keywords:
+                if pk.lower() in note_content.lower():
+                    people.append(pk)
+
+            return json.dumps({
+                "action_items": action_items[:5],
+                "decisions": decisions[:5],
+                "important_facts": important_facts[:5],
+                "dates": dates[:3],
+                "people": people[:5],
+                "technical_terms": technical_terms[:8],
+                "follow_ups": follow_ups[:4],
+            })
+
+        # Check if requested for Note-to-Task Suggestions
+        if system_prompt and ("note-to-task suggestion engine" in system_prompt.lower() or "note task suggestions" in system_prompt.lower()):
+            note_title = "Note"
+            note_content = ""
+            if "NOTE TITLE:" in prompt:
+                note_title = prompt.split("NOTE TITLE:")[1].split("NOTE CONTENT:")[0].strip()
+            if "NOTE CONTENT:" in prompt:
+                remainder = prompt.split("NOTE CONTENT:")[1]
+                if "EXISTING TASKS" in remainder:
+                    note_content = remainder.split("EXISTING TASKS")[0].strip()
+                elif "INSTRUCTIONS:" in remainder:
+                    note_content = remainder.split("INSTRUCTIONS:")[0].strip()
+                else:
+                    note_content = remainder.strip()
+
+            suggestions = []
+            for line in note_content.splitlines():
+                clean_l = line.strip("- *#>`").strip()
+                if not clean_l:
+                    continue
+                lower_l = clean_l.lower()
+
+                # Actionable work indicator: requires action verbs or checklist items
+                if any(kw in lower_l for kw in ["implement", "write", "create", "test", "setup", "set up", "review", "verify", "deploy", "build", "refactor", "[ ]", "[x]"]):
+                    title_text = re.sub(r"^\[[\sxX]?\]\s*", "", clean_l).strip()
+                    title_text = re.sub(r"\[.*?\]", "", title_text).strip()
+                    if not title_text:
+                        continue
+
+                    # Priority detection if explicitly in text
+                    pri = "medium"
+                    if "urgent" in lower_l or "critical" in lower_l:
+                        pri = "urgent"
+                    elif "high" in lower_l:
+                        pri = "high"
+                    elif "low" in lower_l:
+                        pri = "low"
+
+                    # Deadline detection if explicitly mentioned
+                    due = None
+                    if "october 15" in lower_l or "oct 15" in lower_l:
+                        due = "2026-10-15"
+                    elif re.search(r"\b202\d-\d{2}-\d{2}\b", clean_l):
+                        m = re.search(r"\b202\d-\d{2}-\d{2}\b", clean_l)
+                        due = m.group(0)
+
+                    suggestions.append({
+                        "title": title_text,
+                        "description": f"Derived from note '{note_title}': {clean_l}",
+                        "priority": pri,
+                        "due_date": due,
+                        "reason": f"Identified as actionable item in note: {clean_l}",
+                        "confidence": 0.94,
+                    })
+
+            return json.dumps({
+                "suggestions": suggestions[:10],
+            })
+
         # Check if requested to generate AI project progress intelligence
         if system_prompt and any(w in system_prompt.lower() for w in ["project progress intelligence", "project intelligence engine", "specific project's current state"]):
             if "[FORCE_INVALID_PROJECT_INTELLIGENCE]" in prompt:
