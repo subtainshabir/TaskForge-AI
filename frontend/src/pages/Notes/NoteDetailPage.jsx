@@ -26,6 +26,7 @@ import RichTextViewer from "../../components/notes/RichTextViewer/RichTextViewer
 import NoteAISummary from "../../components/notes/NoteAISummary/NoteAISummary.jsx";
 import NoteExtractionResult from "../../components/notes/NoteExtractionResult/NoteExtractionResult.jsx";
 import NoteTaskSuggestions from "../../components/notes/NoteTaskSuggestions/NoteTaskSuggestions.jsx";
+import NoteAIImprovement from "../../components/notes/NoteAIImprovement/NoteAIImprovement.jsx";
 import { noteService } from "../../services/noteService.js";
 import { apiErrorMessage } from "../../utils/apiErrorMessage.js";
 import { formatAbsoluteDate, formatActivityTime } from "../../utils/date.js";
@@ -51,6 +52,11 @@ function NoteDetailPage() {
   const [isSuggestingTasks, setIsSuggestingTasks] = useState(false);
   const [taskSuggestionsError, setTaskSuggestionsError] = useState("");
 
+  const [aiImprovement, setAiImprovement] = useState(null);
+  const [isImproving, setIsImproving] = useState(false);
+  const [improvementError, setImprovementError] = useState("");
+  const [isApplyingImprovement, setIsApplyingImprovement] = useState(false);
+
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -67,6 +73,10 @@ function NoteDetailPage() {
     setExtractionError("");
     setAiTaskSuggestions(null);
     setTaskSuggestionsError("");
+    setAiImprovement(null);
+    setIsImproving(false);
+    setImprovementError("");
+    setIsApplyingImprovement(false);
     try {
       const data = await noteService.get(noteId);
       setNote(data);
@@ -124,6 +134,46 @@ function NoteDetailPage() {
       );
     } finally {
       setIsSuggestingTasks(false);
+    }
+  }
+
+  async function handleImprove() {
+    setIsImproving(true);
+    setImprovementError("");
+    try {
+      // Empty content check in frontend (Section 12)
+      const hasContent = Boolean(
+        (note?.content && note.content.trim().length >= 10) ||
+        (note?.title && note.title.trim().length >= 10)
+      );
+      if (!hasContent) {
+        setImprovementError("This note does not contain enough content to improve yet.");
+        setIsImproving(false);
+        return;
+      }
+      const result = await noteService.improveWithAI(noteId);
+      setAiImprovement(result);
+    } catch (err) {
+      setImprovementError(apiErrorMessage(err, "Failed to review note with AI."));
+    } finally {
+      setIsImproving(false);
+    }
+  }
+
+  async function handleApplyImprovement(improvedTitle, improvedContent) {
+    setIsApplyingImprovement(true);
+    setImprovementError("");
+    try {
+      const updated = await noteService.update(noteId, {
+        title: improvedTitle,
+        content: improvedContent,
+      });
+      setNote(updated);
+      setAiImprovement(null);
+    } catch (err) {
+      setImprovementError(apiErrorMessage(err, "Failed to apply AI improvements."));
+    } finally {
+      setIsApplyingImprovement(false);
     }
   }
 
@@ -244,6 +294,20 @@ function NoteDetailPage() {
             )}
             <span>{isSuggestingTasks ? "Analyzing..." : "Suggest Tasks"}</span>
           </Button>
+          <Button
+            variant="secondary"
+            className="note-detail__ai-btn note-detail__ai-btn--improve"
+            onClick={handleImprove}
+            disabled={isImproving || isSummarizing || isExtracting || isSuggestingTasks}
+            title="Improve clarity, structure, and grammar with AI"
+          >
+            {isImproving ? (
+              <Spinner size="sm" />
+            ) : (
+              <Sparkles size={16} aria-hidden="true" className="note-detail__ai-icon" />
+            )}
+            <span>{isImproving ? "Reviewing..." : "Improve with AI"}</span>
+          </Button>
           <Button variant="secondary" onClick={() => setIsEditOpen(true)}>
             <Pencil size={16} aria-hidden="true" />
             Edit
@@ -295,6 +359,24 @@ function NoteDetailPage() {
         onTasksCreated={() => {
           loadNote();
         }}
+      />
+
+      <NoteAIImprovement
+        originalNote={note}
+        improvement={aiImprovement}
+        isLoading={isImproving}
+        error={improvementError}
+        isApplying={isApplyingImprovement}
+        onRegenerate={handleImprove}
+        onKeepOriginal={() => {
+          setAiImprovement(null);
+          setImprovementError("");
+        }}
+        onClose={() => {
+          setAiImprovement(null);
+          setImprovementError("");
+        }}
+        onApply={handleApplyImprovement}
       />
 
       <Card className="note-detail__card">

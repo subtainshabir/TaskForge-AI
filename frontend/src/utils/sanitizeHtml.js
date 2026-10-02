@@ -117,19 +117,69 @@ export function formatContentForEditor(content) {
     return sanitizeNoteHtml(content);
   }
 
-  // Convert plain text into paragraphs
-  const paragraphs = content
-    .split(/\r?\n\r?\n/)
-    .map((p) => p.trim())
-    .filter(Boolean);
+  // Pre-process markdown code blocks if present
+  let text = content;
+  text = text.replace(/```([\s\S]*?)```/g, (_, code) => {
+    return `<pre class="note-code-block"><code>${escapeHtml(code.trim())}</code></pre>`;
+  });
 
-  if (paragraphs.length === 0) {
-    return `<p>${escapeHtml(content.trim())}</p>`;
+  const rawBlocks = text.split(/\r?\n\r?\n/);
+  const htmlBlocks = [];
+
+  for (let block of rawBlocks) {
+    block = block.trim();
+    if (!block) continue;
+
+    if (block.startsWith('<pre class="note-code-block">')) {
+      htmlBlocks.push(block);
+      continue;
+    }
+
+    if (block.startsWith("### ")) {
+      htmlBlocks.push(`<h3>${escapeHtml(block.slice(4).trim())}</h3>`);
+      continue;
+    }
+    if (block.startsWith("## ")) {
+      htmlBlocks.push(`<h2>${escapeHtml(block.slice(3).trim())}</h2>`);
+      continue;
+    }
+    if (block.startsWith("# ")) {
+      htmlBlocks.push(`<h1>${escapeHtml(block.slice(2).trim())}</h1>`);
+      continue;
+    }
+
+    if (/^[-*]\s+\[[\sxX]?\]/m.test(block)) {
+      const lines = block.split(/\r?\n/);
+      const items = lines.map((line) => {
+        const checked = /^[-*]\s+\[[xX]\]/.test(line.trim());
+        const itemText = line.trim().replace(/^[-*]\s+\[[\sxX]?\]\s*/, "");
+        return `<li class="note-checklist-item" data-checked="${checked ? "true" : "false"}"><input type="checkbox"${checked ? " checked" : ""}/> ${escapeHtml(itemText)}</li>`;
+      });
+      htmlBlocks.push(`<ul class="note-checklist">${items.join("")}</ul>`);
+      continue;
+    }
+
+    if (/^[-*]\s+/m.test(block)) {
+      const lines = block.split(/\r?\n/);
+      const items = lines.map((line) => {
+        const itemText = line.trim().replace(/^[-*]\s+/, "");
+        return `<li>${escapeHtml(itemText)}</li>`;
+      });
+      htmlBlocks.push(`<ul>${items.join("")}</ul>`);
+      continue;
+    }
+
+    if (block.startsWith(">")) {
+      const quoteText = block.replace(/^>\s*/gm, "");
+      htmlBlocks.push(`<blockquote>${escapeHtml(quoteText)}</blockquote>`);
+      continue;
+    }
+
+    htmlBlocks.push(`<p>${escapeHtml(block).replace(/\r?\n/g, "<br />")}</p>`);
   }
 
-  return paragraphs
-    .map((p) => `<p>${escapeHtml(p).replace(/\r?\n/g, "<br />")}</p>`)
-    .join("");
+  const combined = htmlBlocks.join("");
+  return sanitizeNoteHtml(combined);
 }
 
 /**

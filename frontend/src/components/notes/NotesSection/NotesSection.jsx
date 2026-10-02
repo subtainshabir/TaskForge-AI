@@ -213,6 +213,10 @@ function NotesSection({
         onCheckboxToggle={(updatedHtml) =>
           viewingNote && handleCheckboxToggle(viewingNote.id, updatedHtml)
         }
+        onNoteUpdated={(updated) => {
+          replaceNote(updated);
+          setViewingNote(updated);
+        }}
         onEdit={(note) => {
           setViewingNote(null);
           setFormError("");

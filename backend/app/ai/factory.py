@@ -204,6 +204,99 @@ class MockAIProvider(AIProvider):
                 "suggestions": suggestions[:10],
             })
 
+        # Check if requested for Note Improvement
+        if system_prompt and ("note improvement engine" in system_prompt.lower() or "note improvement" in system_prompt.lower()):
+            note_title = "Note"
+            note_content = ""
+            is_html = "NOTE FORMAT: Rich HTML" in prompt
+            if "NOTE TITLE:" in prompt:
+                note_title = prompt.split("NOTE TITLE:")[1].split("NOTE FORMAT:")[0].strip()
+            if "NOTE CONTENT:" in prompt:
+                remainder = prompt.split("NOTE CONTENT:")[1]
+                if "INSTRUCTIONS:" in remainder:
+                    note_content = remainder.split("INSTRUCTIONS:")[0].strip()
+                else:
+                    note_content = remainder.strip()
+
+            lower_c = note_content.lower()
+            lower_t = note_title.lower()
+
+            # Date preservation example (Requirement 2 & Example in Prompt)
+            if "auth" in lower_c and "database" in lower_c:
+                improved_title = "Authentication & Database Implementation Plan"
+                if is_html or ("<" in note_content and ">" in note_content):
+                    improved_content = (
+                        "<h2>Authentication</h2>\n"
+                        "<p>Complete the authentication API and test the implementation before October 15.</p>\n"
+                        "<h2>Database</h2>\n"
+                        "<p>Review the current database configuration.</p>"
+                    )
+                else:
+                    improved_content = (
+                        "## Authentication\n\n"
+                        "Complete the authentication API and test the implementation before October 15.\n\n"
+                        "## Database\n\n"
+                        "Review the current database configuration."
+                    )
+                changes = [
+                    {
+                        "category": "clarity",
+                        "description": "Clarified the authentication requirement and deliverables.",
+                    },
+                    {
+                        "category": "structure",
+                        "description": "Separated authentication and database work into distinct sections.",
+                    },
+                    {
+                        "category": "grammar",
+                        "description": "Corrected sentence fragments and improved overall readability.",
+                    },
+                ]
+            else:
+                clean_t = note_title.strip()
+                improved_title = f"{clean_t} - Refined" if "refined" not in lower_t else clean_t
+
+                # Build structured improved content based on content lines
+                lines = [l.strip() for l in note_content.splitlines() if l.strip()]
+                if is_html or ("<" in note_content and ">" in note_content):
+                    sections = [f"<h2>Overview</h2>\n<p>{note_title}</p>"]
+                    for line in lines:
+                        if line.startswith("- [ ]") or line.startswith("- [x]"):
+                            sections.append(f'<ul class="note-checklist"><li class="note-checklist-item" data-checked="{"true" if "[x]" in line else "false"}"><input type="checkbox" {"checked" if "[x]" in line else ""}/> {line[5:].strip()}</li></ul>')
+                        elif line.startswith("#"):
+                            h_text = line.lstrip("#").strip()
+                            sections.append(f"<h3>{h_text}</h3>")
+                        else:
+                            sections.append(f"<p>{line}</p>")
+                    improved_content = "\n".join(sections)
+                else:
+                    sections = [f"## Overview\n\n{note_title}\n"]
+                    for line in lines:
+                        sections.append(line)
+                    improved_content = "\n\n".join(sections)
+
+                changes = [
+                    {
+                        "category": "clarity",
+                        "description": "Clarified ambiguous statements and strengthened overall readability.",
+                    },
+                    {
+                        "category": "structure",
+                        "description": "Organized key points and work items into structured sections.",
+                    },
+                    {
+                        "category": "grammar",
+                        "description": "Polished grammar, punctuation, and capitalization.",
+                    },
+                ]
+
+            return json.dumps({
+                "improved_title": improved_title,
+                "improved_content": improved_content,
+                "changes": changes,
+                "warnings": [],
+            })
+
         # Check if requested to generate AI project progress intelligence
         if system_prompt and any(w in system_prompt.lower() for w in ["project progress intelligence", "project intelligence engine", "specific project's current state"]):
             if "[FORCE_INVALID_PROJECT_INTELLIGENCE]" in prompt:

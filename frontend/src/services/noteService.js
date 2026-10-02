@@ -63,4 +63,10 @@ export const noteService = {
       method: "POST",
     });
   },
+
+  improveWithAI(noteId) {
+    return apiClient.request(`/notes/${noteId}/ai/improve`, {
+      method: "POST",
+    });
+  },
 };

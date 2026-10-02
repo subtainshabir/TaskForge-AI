@@ -19,6 +19,7 @@ import RichTextViewer from "../RichTextViewer/RichTextViewer.jsx";
 import NoteAISummary from "../NoteAISummary/NoteAISummary.jsx";
 import NoteExtractionResult from "../NoteExtractionResult/NoteExtractionResult.jsx";
 import NoteTaskSuggestions from "../NoteTaskSuggestions/NoteTaskSuggestions.jsx";
+import NoteAIImprovement from "../NoteAIImprovement/NoteAIImprovement.jsx";
 import { noteService } from "../../../services/noteService.js";
 import { apiErrorMessage } from "../../../utils/apiErrorMessage.js";
 import { formatAbsoluteDate, formatActivityTime } from "../../../utils/date.js";
@@ -31,6 +32,7 @@ function NoteModal({
   onEdit,
   onDelete,
   onCheckboxToggle,
+  onNoteUpdated,
 }) {
   const [aiSummary, setAiSummary] = useState(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
@@ -44,7 +46,12 @@ function NoteModal({
   const [isSuggestingTasks, setIsSuggestingTasks] = useState(false);
   const [taskSuggestionsError, setTaskSuggestionsError] = useState("");
 
-  // Reset summary, extraction, and task suggestion state when opening a different note
+  const [aiImprovement, setAiImprovement] = useState(null);
+  const [isImproving, setIsImproving] = useState(false);
+  const [improvementError, setImprovementError] = useState("");
+  const [isApplyingImprovement, setIsApplyingImprovement] = useState(false);
+
+  // Reset summary, extraction, task suggestions, and improvement state when opening a different note
   useEffect(() => {
     setAiSummary(null);
     setIsSummarizing(false);
@@ -55,6 +62,10 @@ function NoteModal({
     setAiTaskSuggestions(null);
     setIsSuggestingTasks(false);
     setTaskSuggestionsError("");
+    setAiImprovement(null);
+    setIsImproving(false);
+    setImprovementError("");
+    setIsApplyingImprovement(false);
   }, [note?.id]);
 
   async function handleSummarize() {
@@ -98,6 +109,49 @@ function NoteModal({
       );
     } finally {
       setIsSuggestingTasks(false);
+    }
+  }
+
+  async function handleImprove() {
+    if (!note?.id) return;
+    setIsImproving(true);
+    setImprovementError("");
+    try {
+      const hasContent = Boolean(
+        (note?.content && note.content.trim().length >= 10) ||
+        (note?.title && note.title.trim().length >= 10)
+      );
+      if (!hasContent) {
+        setImprovementError("This note does not contain enough content to improve yet.");
+        setIsImproving(false);
+        return;
+      }
+      const result = await noteService.improveWithAI(note.id);
+      setAiImprovement(result);
+    } catch (err) {
+      setImprovementError(apiErrorMessage(err, "Failed to review note with AI."));
+    } finally {
+      setIsImproving(false);
+    }
+  }
+
+  async function handleApplyImprovement(improvedTitle, improvedContent) {
+    if (!note?.id) return;
+    setIsApplyingImprovement(true);
+    setImprovementError("");
+    try {
+      const updated = await noteService.update(note.id, {
+        title: improvedTitle,
+        content: improvedContent,
+      });
+      if (onNoteUpdated) {
+        onNoteUpdated(updated);
+      }
+      setAiImprovement(null);
+    } catch (err) {
+      setImprovementError(apiErrorMessage(err, "Failed to apply AI improvements."));
+    } finally {
+      setIsApplyingImprovement(false);
     }
   }
   if (!note) return null;
@@ -148,13 +202,25 @@ function NoteModal({
               type="button"
               variant="secondary"
               className="note-modal__ai-btn"
-              disabled={isSuggestingTasks || isSummarizing || isExtracting}
+              disabled={isSuggestingTasks || isSummarizing || isExtracting || isImproving}
               loading={isSuggestingTasks}
               onClick={handleSuggestTasks}
               title="Suggest actionable tasks from this note with AI"
             >
               <ListTodo size={14} aria-hidden="true" />
               Suggest Tasks
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              className="note-modal__ai-btn"
+              disabled={isImproving || isSummarizing || isExtracting || isSuggestingTasks}
+              loading={isImproving}
+              onClick={handleImprove}
+              title="Improve clarity, structure, and grammar with AI"
+            >
+              <Sparkles size={14} aria-hidden="true" />
+              Improve
             </Button>
             {onDelete && (
               <Button
@@ -268,6 +334,24 @@ function NoteModal({
           setTaskSuggestionsError("");
         }}
         currentNote={note}
+      />
+
+      <NoteAIImprovement
+        originalNote={note}
+        improvement={aiImprovement}
+        isLoading={isImproving}
+        error={improvementError}
+        isApplying={isApplyingImprovement}
+        onRegenerate={handleImprove}
+        onKeepOriginal={() => {
+          setAiImprovement(null);
+          setImprovementError("");
+        }}
+        onClose={() => {
+          setAiImprovement(null);
+          setImprovementError("");
+        }}
+        onApply={handleApplyImprovement}
       />
 
       <div className="note-modal__content">

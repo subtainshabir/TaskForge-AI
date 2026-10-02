@@ -13,6 +13,8 @@ from app.ai.note_extraction.schemas import NoteExtractionResponse
 from app.ai.note_extraction.service import extract_note_ai
 from app.ai.note_task_suggestions.schemas import TaskSuggestionResponse
 from app.ai.note_task_suggestions.service import suggest_tasks_from_note_ai
+from app.ai.note_improvement.schemas import NoteImprovementResponse
+from app.ai.note_improvement.service import improve_note_ai
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.task import Task
@@ -197,5 +199,26 @@ def suggest_tasks_endpoint(
         project_id=suggested_project_id,
         project_name=suggested_project_name,
     )
+
+
+@router.post("/{note_id}/ai/improve", response_model=NoteImprovementResponse)
+def improve_note_endpoint(
+    note_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    ai_provider: AIProvider = Depends(get_ai_provider),
+) -> NoteImprovementResponse:
+    """
+    Review an existing note owned by the authenticated user and suggest improvements
+    to clarity, structure, grammar, conciseness, and organization.
+    Does NOT modify the note in the database.
+    """
+    note = service.get_owned_note(db=db, user_id=current_user.id, note_id=note_id)
+    return improve_note_ai(
+        title=note.title,
+        content=note.content,
+        provider=ai_provider,
+    )
+
 
 
