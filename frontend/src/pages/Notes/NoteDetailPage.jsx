@@ -12,6 +12,7 @@ import {
   Sparkles,
   FileSearch,
   ListTodo,
+  MessageSquare,
 } from "lucide-react";
 import PageContainer from "../../components/PageContainer/PageContainer.jsx";
 import Card from "../../components/Card/Card.jsx";
@@ -27,6 +28,7 @@ import NoteAISummary from "../../components/notes/NoteAISummary/NoteAISummary.js
 import NoteExtractionResult from "../../components/notes/NoteExtractionResult/NoteExtractionResult.jsx";
 import NoteTaskSuggestions from "../../components/notes/NoteTaskSuggestions/NoteTaskSuggestions.jsx";
 import NoteAIImprovement from "../../components/notes/NoteAIImprovement/NoteAIImprovement.jsx";
+import NoteAIChat from "../../components/notes/NoteAIChat/NoteAIChat.jsx";
 import { noteService } from "../../services/noteService.js";
 import { apiErrorMessage } from "../../utils/apiErrorMessage.js";
 import { formatAbsoluteDate, formatActivityTime } from "../../utils/date.js";
@@ -57,6 +59,8 @@ function NoteDetailPage() {
   const [improvementError, setImprovementError] = useState("");
   const [isApplyingImprovement, setIsApplyingImprovement] = useState(false);
 
+  const [isChatOpen, setIsChatOpen] = useState(false);
+
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -77,6 +81,7 @@ function NoteDetailPage() {
     setIsImproving(false);
     setImprovementError("");
     setIsApplyingImprovement(false);
+    setIsChatOpen(false);
     try {
       const data = await noteService.get(noteId);
       setNote(data);
@@ -308,6 +313,15 @@ function NoteDetailPage() {
             )}
             <span>{isImproving ? "Reviewing..." : "Improve with AI"}</span>
           </Button>
+          <Button
+            variant={isChatOpen ? "primary" : "secondary"}
+            className="note-detail__ai-btn note-detail__ai-btn--ask"
+            onClick={() => setIsChatOpen((prev) => !prev)}
+            title="Ask questions about this note with AI"
+          >
+            <MessageSquare size={16} aria-hidden="true" className="note-detail__ai-icon" />
+            <span>Ask AI</span>
+          </Button>
           <Button variant="secondary" onClick={() => setIsEditOpen(true)}>
             <Pencil size={16} aria-hidden="true" />
             Edit
@@ -377,6 +391,12 @@ function NoteDetailPage() {
           setImprovementError("");
         }}
         onApply={handleApplyImprovement}
+      />
+
+      <NoteAIChat
+        note={note}
+        open={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
       />
 
       <Card className="note-detail__card">

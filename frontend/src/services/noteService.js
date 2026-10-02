@@ -69,4 +69,11 @@ export const noteService = {
       method: "POST",
     });
   },
+
+  askAIAboutNote(noteId, payload) {
+    return apiClient.request(`/notes/${noteId}/ai/ask`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
 };

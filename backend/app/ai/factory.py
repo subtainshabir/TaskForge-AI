@@ -297,6 +297,56 @@ class MockAIProvider(AIProvider):
                 "warnings": [],
             })
 
+        # Check if requested for Note Question & Answering (Phase 42)
+        if system_prompt and ("note question & answering engine" in system_prompt.lower() or "note qa" in system_prompt.lower()):
+            note_content = ""
+            user_question = ""
+            if "NOTE CONTENT:" in prompt:
+                remainder = prompt.split("NOTE CONTENT:")[1]
+                if "CONVERSATION CONTEXT" in remainder:
+                    note_content = remainder.split("CONVERSATION CONTEXT")[0].strip()
+                elif "USER QUESTION:" in remainder:
+                    note_content = remainder.split("USER QUESTION:")[0].strip()
+            if "USER QUESTION:" in prompt:
+                user_question = prompt.split("USER QUESTION:")[1].split("INSTRUCTIONS:")[0].strip()
+
+            lower_q = user_question.lower()
+            lower_c = note_content.lower()
+
+            # Deadline / date inquiry (Example in Prompt)
+            if any(w in lower_q for w in ["deadline", "due date", "when"]):
+                if "october 15" in lower_c:
+                    ans = "The authentication deadline mentioned in the note is October 15."
+                elif any(m in lower_c for m in ["november", "december", "january", "february", "march", "april", "may", "june", "july", "august", "september"]):
+                    ans = "The note mentions an explicit schedule milestone."
+                else:
+                    ans = "The note does not contain enough information about a deadline."
+            # Main objective / what needs to be completed
+            elif any(w in lower_q for w in ["objective", "goal", "purpose", "what needs to be completed", "main"]):
+                if "auth" in lower_c:
+                    ans = "The main objective is to implement the authentication API and test it before October 15."
+                else:
+                    ans = "The note outlines upcoming project tasks and specifications."
+            # Missing context inquiry (e.g. migration, pricing, salary, weather)
+            elif any(w in lower_q for w in ["migration", "salary", "budget", "pricing", "weather", "vacation"]):
+                ans = "The note does not contain enough information to answer that question."
+            # Database inquiry
+            elif "database" in lower_q or "db" in lower_q or "postgres" in lower_q:
+                if "database" in lower_c:
+                    ans = "The note mentions that the database configuration should be reviewed."
+                else:
+                    ans = "The note does not mention any database configuration."
+            else:
+                words = [w for w in lower_q.replace("?", "").split() if len(w) > 3 and w not in ["what", "when", "where", "which", "does", "note", "mention", "about", "tell"]]
+                matching = [w for w in words if w in lower_c]
+                if matching:
+                    first_line = note_content.splitlines()[0] if note_content else "the stated items"
+                    ans = f"Based on the note, {first_line}."
+                else:
+                    ans = "The note does not contain enough information to answer that question."
+
+            return json.dumps({"answer": ans})
+
         # Check if requested to generate AI project progress intelligence
         if system_prompt and any(w in system_prompt.lower() for w in ["project progress intelligence", "project intelligence engine", "specific project's current state"]):
             if "[FORCE_INVALID_PROJECT_INTELLIGENCE]" in prompt:

@@ -11,6 +11,7 @@ import {
   Sparkles,
   FileSearch,
   ListTodo,
+  MessageSquare,
 } from "lucide-react";
 import Modal from "../../Modal/Modal.jsx";
 import Button from "../../Button/Button.jsx";
@@ -20,6 +21,7 @@ import NoteAISummary from "../NoteAISummary/NoteAISummary.jsx";
 import NoteExtractionResult from "../NoteExtractionResult/NoteExtractionResult.jsx";
 import NoteTaskSuggestions from "../NoteTaskSuggestions/NoteTaskSuggestions.jsx";
 import NoteAIImprovement from "../NoteAIImprovement/NoteAIImprovement.jsx";
+import NoteAIChat from "../NoteAIChat/NoteAIChat.jsx";
 import { noteService } from "../../../services/noteService.js";
 import { apiErrorMessage } from "../../../utils/apiErrorMessage.js";
 import { formatAbsoluteDate, formatActivityTime } from "../../../utils/date.js";
@@ -51,6 +53,8 @@ function NoteModal({
   const [improvementError, setImprovementError] = useState("");
   const [isApplyingImprovement, setIsApplyingImprovement] = useState(false);
 
+  const [isChatOpen, setIsChatOpen] = useState(false);
+
   // Reset summary, extraction, task suggestions, and improvement state when opening a different note
   useEffect(() => {
     setAiSummary(null);
@@ -66,6 +70,7 @@ function NoteModal({
     setIsImproving(false);
     setImprovementError("");
     setIsApplyingImprovement(false);
+    setIsChatOpen(false);
   }, [note?.id]);
 
   async function handleSummarize() {
@@ -222,6 +227,17 @@ function NoteModal({
               <Sparkles size={14} aria-hidden="true" />
               Improve
             </Button>
+            <Button
+              type="button"
+              variant={isChatOpen ? "primary" : "secondary"}
+              className="note-modal__ai-btn"
+              disabled={isImproving || isSummarizing || isExtracting || isSuggestingTasks}
+              onClick={() => setIsChatOpen((prev) => !prev)}
+              title="Ask questions about this note with AI"
+            >
+              <MessageSquare size={14} aria-hidden="true" />
+              Ask AI
+            </Button>
             {onDelete && (
               <Button
                 type="button"
@@ -352,6 +368,12 @@ function NoteModal({
           setImprovementError("");
         }}
         onApply={handleApplyImprovement}
+      />
+
+      <NoteAIChat
+        note={note}
+        open={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
       />
 
       <div className="note-modal__content">

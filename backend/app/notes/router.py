@@ -15,6 +15,8 @@ from app.ai.note_task_suggestions.schemas import TaskSuggestionResponse
 from app.ai.note_task_suggestions.service import suggest_tasks_from_note_ai
 from app.ai.note_improvement.schemas import NoteImprovementResponse
 from app.ai.note_improvement.service import improve_note_ai
+from app.ai.note_qa.schemas import NoteQARequest, NoteQAResponse
+from app.ai.note_qa.service import answer_note_question_ai
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.task import Task
@@ -219,6 +221,30 @@ def improve_note_endpoint(
         content=note.content,
         provider=ai_provider,
     )
+
+
+@router.post("/{note_id}/ai/ask", response_model=NoteQAResponse)
+def ask_note_question_endpoint(
+    note_id: int,
+    payload: NoteQARequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    ai_provider: AIProvider = Depends(get_ai_provider),
+) -> NoteQAResponse:
+    """
+    Ask a question about an individual note owned by the authenticated user.
+    Answers are derived strictly from the note's content.
+    Does NOT modify the note in the database.
+    """
+    note = service.get_owned_note(db=db, user_id=current_user.id, note_id=note_id)
+    return answer_note_question_ai(
+        title=note.title,
+        content=note.content,
+        question=payload.question,
+        conversation_history=payload.conversation_history,
+        provider=ai_provider,
+    )
+
 
 
 
