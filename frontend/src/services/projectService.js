@@ -54,4 +54,11 @@ export const projectService = {
       method: "POST",
     });
   },
+
+  askAIAboutProject(projectId, payload) {
+    return apiClient.request(`/projects/${projectId}/ai/ask`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
 };

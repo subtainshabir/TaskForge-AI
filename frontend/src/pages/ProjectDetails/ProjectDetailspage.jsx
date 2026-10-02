@@ -22,6 +22,7 @@ import DeleteProjectDialog from "../../components/projects/DeleteProjectDialog/D
 import ProjectTasksPanel from "../../components/tasks/ProjectTasksPanel/ProjectTasksPanel.jsx";
 import TaskAISuggestions from "../../components/tasks/TaskAISuggestions/TaskAISuggestions.jsx";
 import ProjectProgressIntelligence from "../../components/projects/ProjectProgressIntelligence/ProjectProgressIntelligence.jsx";
+import ProjectAIChat from "../../components/projects/ProjectAIChat/ProjectAIChat.jsx";
 import NotesSection from "../../components/notes/NotesSection/NotesSection.jsx";
 import { projectService } from "../../services/projectService.js";
 import { analyticsService } from "../../services/analyticsService.js";
@@ -56,6 +57,7 @@ function ProjectDetailsPage({ initialSection }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const [isProjectAIOpen, setIsProjectAIOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -152,6 +154,15 @@ function ProjectDetailsPage({ initialSection }) {
       }
       actions={
         <>
+          <Button
+            variant={isProjectAIOpen ? "secondary" : "default"}
+            onClick={() => setIsProjectAIOpen((prev) => !prev)}
+            className="project-details__ai-toggle-btn"
+            aria-expanded={isProjectAIOpen}
+          >
+            <Sparkles size={16} aria-hidden="true" />
+            {isProjectAIOpen ? "Close Project AI" : "Ask AI About This Project"}
+          </Button>
           <Button variant="secondary" onClick={() => setIsEditOpen(true)}>
             <Pencil size={16} aria-hidden="true" />
             Edit
@@ -167,6 +178,15 @@ function ProjectDetailsPage({ initialSection }) {
         <ArrowLeft size={14} aria-hidden="true" />
         Back to Projects
       </Link>
+
+      {isProjectAIOpen && (
+        <ProjectAIChat
+          projectId={project.id}
+          projectName={project.name}
+          open={isProjectAIOpen}
+          onClose={() => setIsProjectAIOpen(false)}
+        />
+      )}
 
       <div className="project-details__nav" role="tablist" aria-label="Project sections">
         {SECTIONS.map(({ id, label: sectionLabel, icon: Icon, enabled }) => (

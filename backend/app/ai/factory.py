@@ -453,6 +453,209 @@ class MockAIProvider(AIProvider):
                     "source_note_ids": []
                 })
 
+        # Check if requested for Project Knowledge AI (Phase 44)
+        if system_prompt and ("project knowledge assistant" in system_prompt.lower() or "project knowledge" in system_prompt.lower()):
+            user_question = ""
+            if "USER QUESTION:" in prompt:
+                user_question = prompt.split("USER QUESTION:")[1].split("INSTRUCTIONS:")[0].strip()
+
+            lower_q = user_question.lower()
+
+            # Parse project info from prompt
+            project_id = 1
+            project_name = "Project"
+            project_status = "active"
+            progress_str = "0%"
+
+            tasks_list = []
+            notes_list = []
+            phases_list = []
+
+            for line in prompt.splitlines():
+                line_str = line.strip()
+                if line_str.startswith("PROJECT:"):
+                    m = re.search(r"PROJECT:\s*(.*?)\s*\(ID:\s*(\d+)\)", line_str)
+                    if m:
+                        project_name = m.group(1).strip()
+                        project_id = int(m.group(2).strip())
+                elif line_str.startswith("Status:"):
+                    project_status = line_str.replace("Status:", "").strip()
+                elif line_str.startswith("Overall Progress:"):
+                    m = re.search(r"Overall Progress:\s*(\d+%)", line_str)
+                    if m:
+                        progress_str = m.group(1)
+                elif line_str.startswith("- [Task #"):
+                    m = re.search(r'- \[Task #(\d+)\] "(.*?)" \| Status: (\w+) \| Priority: (\w+) \| Progress: (\d+)% \| Deadline: (.*?)(?: \| Description: (.*?))?$', line_str)
+                    if m:
+                        tasks_list.append({
+                            "id": int(m.group(1)),
+                            "title": m.group(2).strip(),
+                            "status": m.group(3).strip().lower(),
+                            "priority": m.group(4).strip().lower(),
+                            "progress": int(m.group(5)),
+                            "deadline": m.group(6).strip(),
+                            "description": (m.group(7) or "").strip(),
+                        })
+                elif "Phase #" in line_str:
+                    m = re.search(r'Phase #(\d+):\s*"(.*?)"\s*\(Status:\s*(\w+),\s*Progress:\s*(\d+)%\)', line_str)
+                    if m:
+                        phases_list.append({
+                            "id": int(m.group(1)),
+                            "title": m.group(2).strip(),
+                            "status": m.group(3).strip().lower(),
+                            "progress": int(m.group(4)),
+                        })
+                elif line_str.startswith("- [Note #"):
+                    m = re.search(r'- \[Note #(\d+)\] "(.*?)":\s*(.*)$', line_str)
+                    if m:
+                        notes_list.append({
+                            "id": int(m.group(1)),
+                            "title": m.group(2).strip(),
+                            "content": m.group(3).strip(),
+                        })
+
+            # Check missing context
+            if any(w in lower_q for w in ["salary", "budget", "pricing", "weather", "vacation", "bonus", "stock", "revenue"]):
+                return json.dumps({
+                    "answer": "The project does not contain enough information to answer that question.",
+                    "sources": []
+                })
+
+            # 1. Blocking tasks question (User Prompt Example)
+            if any(w in lower_q for w in ["block", "blocking", "blocked"]):
+                blocked = [t for t in tasks_list if t["status"] == "blocked"]
+                if blocked:
+                    auth_blocked = [t for t in blocked if "auth" in t["title"].lower()]
+                    deploy_blocked = [t for t in blocked if "deploy" in t["title"].lower()]
+                    if auth_blocked and deploy_blocked:
+                        ans = "Two tasks are currently incomplete and marked as blocked. The authentication task is waiting for API configuration, while the deployment task is waiting for environment setup."
+                    else:
+                        titles = ", ".join([f"'{t['title']}'" for t in blocked])
+                        ans = f"{len(blocked)} task{'s are' if len(blocked) > 1 else ' is'} currently marked as blocked: {titles}."
+                    sources = [{"type": "task", "id": t["id"], "title": t["title"]} for t in blocked]
+                    return json.dumps({"answer": ans, "sources": sources})
+                else:
+                    return json.dumps({
+                        "answer": "There are currently no tasks marked as blocked in this project.",
+                        "sources": []
+                    })
+
+            # 2. Phases question
+            if "phase" in lower_q or "phases" in lower_q:
+                in_prog_phases = [p for p in phases_list if p["status"] == "in_progress"]
+                if in_prog_phases:
+                    target_ph = in_prog_phases[0]
+                    ans = f"The phase '{target_ph['title']}' is currently in progress at {target_ph['progress']}% completion."
+                    sources = [{"type": "phase", "id": target_ph["id"], "title": target_ph["title"]}]
+                    return json.dumps({"answer": ans, "sources": sources})
+                elif phases_list:
+                    titles = ", ".join([f"'{p['title']}'" for p in phases_list])
+                    ans = f"The project contains {len(phases_list)} phase{'s' if len(phases_list) > 1 else ''}: {titles}."
+                    sources = [{"type": "phase", "id": p["id"], "title": p["title"]} for p in phases_list]
+                    return json.dumps({"answer": ans, "sources": sources})
+                else:
+                    return json.dumps({"answer": "There are no phases recorded for this project.", "sources": []})
+
+            # 3. Incomplete tasks question
+            if "incomplete" in lower_q or "remaining" in lower_q or "not done" in lower_q:
+                incomplete = [t for t in tasks_list if t["status"] not in ("completed", "cancelled")]
+                if incomplete:
+                    titles = ", ".join([f"'{t['title']}' ({t['status']})" for t in incomplete])
+                    ans = f"There are {len(incomplete)} incomplete task{'s' if len(incomplete) > 1 else ''}: {titles}."
+                    sources = [{"type": "task", "id": t["id"], "title": t["title"]} for t in incomplete]
+                    return json.dumps({"answer": ans, "sources": sources})
+                else:
+                    return json.dumps({"answer": "All tasks in this project are completed.", "sources": []})
+
+            # 4. Priorities question
+            if "priority" in lower_q or "priorities" in lower_q or "urgent" in lower_q:
+                high_pri = [t for t in tasks_list if t["priority"] in ("urgent", "high")]
+                if high_pri:
+                    titles = ", ".join([f"'{t['title']}'" for t in high_pri])
+                    ans = f"The high-priority tasks in this project are: {titles}."
+                    sources = [{"type": "task", "id": t["id"], "title": t["title"]} for t in high_pri]
+                    return json.dumps({"answer": ans, "sources": sources})
+                else:
+                    return json.dumps({"answer": "There are no high-priority tasks in this project.", "sources": []})
+
+            # 5. Recommendation / Focus question (Section 8 & 9)
+            if any(w in lower_q for w in ["focus", "what should i", "next", "work remains", "recommend"]):
+                incomplete = [t for t in tasks_list if t["status"] not in ("completed", "cancelled")]
+                if incomplete:
+                    # Pick highest priority incomplete
+                    high_pri = [t for t in incomplete if t["priority"] in ("urgent", "high")]
+                    target = high_pri[0] if high_pri else incomplete[0]
+
+                    ans = (
+                        f"Current facts:\n"
+                        f"There are {len(incomplete)} incomplete tasks remaining in the project.\n\n"
+                        f"Suggested focus:\n"
+                        f"Focus on '{target['title']}' (Priority: {target['priority']}, Status: {target['status']}) to advance progress."
+                    )
+                    sources = [{"type": "task", "id": target["id"], "title": target["title"]}]
+                    return json.dumps({"answer": ans, "sources": sources})
+                else:
+                    ans = (
+                        "Current facts:\n"
+                        "All tasks for this project are complete.\n\n"
+                        "Suggested focus:\n"
+                        "Review final deliverables or archive the project."
+                    )
+                    return json.dumps({"answer": ans, "sources": []})
+
+            # 6. Notes / Decisions question
+            if "note" in lower_q or "notes" in lower_q or "decision" in lower_q:
+                if notes_list:
+                    titles = ", ".join([f"'{n['title']}'" for n in notes_list])
+                    ans = f"The project notes record decisions and architecture details across {len(notes_list)} note{'s' if len(notes_list) > 1 else ''}: {titles}."
+                    sources = [{"type": "note", "id": n["id"], "title": n["title"]} for n in notes_list]
+                    return json.dumps({"answer": ans, "sources": sources})
+                else:
+                    return json.dumps({"answer": "No notes have been recorded for this project.", "sources": []})
+
+            # 7. Deadlines question
+            if "deadline" in lower_q or "due" in lower_q:
+                with_dl = [t for t in tasks_list if t["deadline"] != "None"]
+                if with_dl:
+                    items = ", ".join([f"'{t['title']}' due {t['deadline']}" for t in with_dl])
+                    ans = f"The upcoming project deadline{'s are' if len(with_dl) > 1 else ' is'}: {items}."
+                    sources = [{"type": "task", "id": t["id"], "title": t["title"]} for t in with_dl]
+                    return json.dumps({"answer": ans, "sources": sources})
+                else:
+                    return json.dumps({"answer": "The project does not currently have a deadline recorded.", "sources": []})
+
+            # 8. Progress question
+            if any(w in lower_q for w in ["how much", "progress", "percentage", "complete?"]):
+                completed = [t for t in tasks_list if t["status"] == "completed"]
+                ans = f"The project is currently {progress_str} complete, with {len(completed)} of {len(tasks_list)} tasks completed."
+                return json.dumps({
+                    "answer": ans,
+                    "sources": [{"type": "project", "id": project_id, "title": project_name}]
+                })
+
+            # 9. Overview / summary question
+            if "overview" in lower_q or "summary" in lower_q or "state" in lower_q:
+                incomplete = [t for t in tasks_list if t["status"] not in ("completed", "cancelled")]
+                ans = f"Project '{project_name}' is currently {project_status}. It is {progress_str} complete with {len(incomplete)} remaining tasks."
+                return json.dumps({
+                    "answer": ans,
+                    "sources": [{"type": "project", "id": project_id, "title": project_name}]
+                })
+
+            # Generic fallback
+            words = [w for w in lower_q.replace("?", "").split() if len(w) > 3 and w not in ["what", "when", "where", "which", "does", "project", "about", "tell", "show"]]
+            matching_tasks = [t for t in tasks_list if any(w in (t["title"] + " " + t["description"]).lower() for w in words)]
+            if matching_tasks:
+                titles = ", ".join([f"'{t['title']}'" for t in matching_tasks])
+                ans = f"Relevant information was found in {len(matching_tasks)} task{'s' if len(matching_tasks) > 1 else ''}: {titles}."
+                sources = [{"type": "task", "id": t["id"], "title": t["title"]} for t in matching_tasks]
+                return json.dumps({"answer": ans, "sources": sources})
+
+            return json.dumps({
+                "answer": f"Project '{project_name}' is {project_status} and {progress_str} complete.",
+                "sources": [{"type": "project", "id": project_id, "title": project_name}]
+            })
+
         # Check if requested to generate AI project progress intelligence
         if system_prompt and any(w in system_prompt.lower() for w in ["project progress intelligence", "project intelligence engine", "specific project's current state"]):
             if "[FORCE_INVALID_PROJECT_INTELLIGENCE]" in prompt:

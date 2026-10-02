@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 from app.ai.base import AIProvider
 from app.ai.factory import get_ai_provider
 from app.ai.project_intelligence.schemas import ProjectProgressIntelligenceResponse
+from app.ai.project_knowledge.schemas import ProjectAIRequest, ProjectAIResponse
+from app.ai.project_knowledge.service import answer_project_question_ai
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.user import User
@@ -126,3 +128,29 @@ def get_project_notes_endpoint(
     return notes_service.list_project_notes(
         db=db, user_id=current_user.id, project_id=project_id
     )
+
+
+@router.post(
+    "/{project_id}/ai/ask",
+    response_model=ProjectAIResponse,
+)
+def ask_project_ai_endpoint(
+    project_id: int,
+    payload: ProjectAIRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    ai_provider: AIProvider = Depends(get_ai_provider),
+) -> ProjectAIResponse:
+    """
+    Ask an AI question about an individual project using its tasks, phases, notes, and progress.
+    Answers are derived strictly from the project's data.
+    Does NOT modify any project data.
+    """
+    return answer_project_question_ai(
+        db=db,
+        user_id=current_user.id,
+        project_id=project_id,
+        question=payload.question,
+        conversation_history=payload.conversation_history,
+        provider=ai_provider,
+    )
