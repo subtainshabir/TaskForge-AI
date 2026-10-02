@@ -347,6 +347,112 @@ class MockAIProvider(AIProvider):
 
             return json.dumps({"answer": ans})
 
+        # Check if requested for Cross-Note AI Search (Phase 43)
+        if system_prompt and ("cross-note search engine" in system_prompt.lower() or "cross-note ai search" in system_prompt.lower()):
+            user_question = ""
+            if "USER QUESTION:" in prompt:
+                user_question = prompt.split("USER QUESTION:")[1].split("AVAILABLE CANDIDATE NOTES:")[0].strip()
+
+            lower_q = user_question.lower()
+
+            # Parse candidate notes
+            candidate_notes = []
+            if "AVAILABLE CANDIDATE NOTES:" in prompt:
+                notes_block = prompt.split("AVAILABLE CANDIDATE NOTES:")[1]
+                if "INSTRUCTIONS:" in notes_block:
+                    notes_block = notes_block.split("INSTRUCTIONS:")[0]
+
+                chunks = re.split(r"--- NOTE ID: (\d+) \| TITLE: (.*?) ---", notes_block)
+                if len(chunks) >= 4:
+                    i = 1
+                    while i < len(chunks):
+                        try:
+                            n_id = int(chunks[i].strip())
+                            n_title = chunks[i+1].strip()
+                            n_content = chunks[i+2].strip() if i+2 < len(chunks) else ""
+                            candidate_notes.append((n_id, n_title, n_content))
+                        except Exception:
+                            pass
+                        i += 3
+
+            # Missing information inquiry check (e.g. migration, pricing, salary, budget, weather, etc.)
+            if any(w in lower_q for w in ["salary", "budget", "pricing", "weather", "vacation", "bonus"]):
+                return json.dumps({
+                    "answer": "The available notes do not contain enough information to answer this question.",
+                    "source_note_ids": []
+                })
+
+            # Check for PostgreSQL question (Prompt Example 1)
+            if "postgre" in lower_q or "postgres" in lower_q:
+                matching = [n for n in candidate_notes if "postgres" in (n[1] + " " + n[2]).lower()]
+                if matching:
+                    titles_str = ", ".join([f"'{m[1]}'" for m in matching])
+                    ans = f"PostgreSQL is mentioned in {len(matching)} note{'s' if len(matching) > 1 else ''}: {titles_str}."
+                    return json.dumps({
+                        "answer": ans,
+                        "source_note_ids": [m[0] for m in matching]
+                    })
+                else:
+                    return json.dumps({
+                        "answer": "The available notes do not contain enough information to answer this question.",
+                        "source_note_ids": []
+                    })
+
+            # Check for JWT / Authentication question (Prompt Example 2)
+            if any(w in lower_q for w in ["jwt", "authentication", "auth"]):
+                matching = [n for n in candidate_notes if any(k in (n[1] + " " + n[2]).lower() for k in ["auth", "jwt"])]
+                if matching:
+                    if len(matching) == 2:
+                        ans = "JWT authentication is discussed in two notes."
+                    else:
+                        titles_str = ", ".join([f"'{m[1]}'" for m in matching])
+                        ans = f"Authentication is discussed in {len(matching)} note{'s' if len(matching) > 1 else ''}: {titles_str}."
+                    return json.dumps({
+                        "answer": ans,
+                        "source_note_ids": [m[0] for m in matching]
+                    })
+                else:
+                    return json.dumps({
+                        "answer": "The available notes do not contain enough information to answer this question.",
+                        "source_note_ids": []
+                    })
+
+            # Check for Deadline inquiry
+            if any(w in lower_q for w in ["deadline", "due date"]):
+                matching = [n for n in candidate_notes if any(k in (n[1] + " " + n[2]).lower() for k in ["deadline", "due", "october 15", "november"])]
+                if matching:
+                    ans = f"Deadlines are mentioned in {len(matching)} note{'s' if len(matching) > 1 else ''}: {', '.join([m[1] for m in matching])}."
+                    return json.dumps({
+                        "answer": ans,
+                        "source_note_ids": [m[0] for m in matching]
+                    })
+                else:
+                    return json.dumps({
+                        "answer": "The available notes do not contain enough information to answer this question.",
+                        "source_note_ids": []
+                    })
+
+            # Generic keyword matching across candidate notes
+            words = [w for w in lower_q.replace("?", "").split() if len(w) > 3 and w not in ["what", "when", "where", "which", "does", "note", "notes", "mention", "about", "tell", "show", "discuss"]]
+            matching = [n for n in candidate_notes if any(w in (n[1] + " " + n[2]).lower() for w in words)] if words else candidate_notes
+            if matching and words:
+                titles_str = ", ".join([f"'{m[1]}'" for m in matching])
+                ans = f"Information matching your query was found in {len(matching)} note{'s' if len(matching) > 1 else ''}: {titles_str}."
+                return json.dumps({
+                    "answer": ans,
+                    "source_note_ids": [m[0] for m in matching]
+                })
+            elif matching and not words:
+                return json.dumps({
+                    "answer": f"Found {len(matching)} note{'s' if len(matching) > 1 else ''} related to your query.",
+                    "source_note_ids": [m[0] for m in matching]
+                })
+            else:
+                return json.dumps({
+                    "answer": "The available notes do not contain enough information to answer this question.",
+                    "source_note_ids": []
+                })
+
         # Check if requested to generate AI project progress intelligence
         if system_prompt and any(w in system_prompt.lower() for w in ["project progress intelligence", "project intelligence engine", "specific project's current state"]):
             if "[FORCE_INVALID_PROJECT_INTELLIGENCE]" in prompt:

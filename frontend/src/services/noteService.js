@@ -76,4 +76,11 @@ export const noteService = {
       body: JSON.stringify(payload),
     });
   },
+
+  searchAIAcrossNotes(payload) {
+    return apiClient.request("/notes/ai/search", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
 };

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, StickyNote, Search, X, ArrowUpDown, Filter } from "lucide-react";
+import { Plus, StickyNote, Search, X, ArrowUpDown, Filter, Sparkles } from "lucide-react";
 import PageContainer from "../../components/PageContainer/PageContainer.jsx";
 import Card from "../../components/Card/Card.jsx";
 import Button from "../../components/Button/Button.jsx";
@@ -7,6 +7,7 @@ import Modal from "../../components/Modal/Modal.jsx";
 import NoteList from "../../components/notes/NoteList/NoteList.jsx";
 import NoteForm from "../../components/notes/NoteForm/NoteForm.jsx";
 import NoteModal from "../../components/notes/NoteModal/NoteModal.jsx";
+import NoteAISearch from "../../components/notes/NoteAISearch/NoteAISearch.jsx";
 import DeleteNoteDialog from "../../components/notes/DeleteNoteDialog/DeleteNoteDialog.jsx";
 import { useNotes } from "../../hooks/useNotes.js";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue.js";
@@ -47,6 +48,7 @@ function NotesPage() {
     order,
   });
 
+  const [isAISearchOpen, setIsAISearchOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingNote, setEditingNote] = useState(null);
   const [viewingNote, setViewingNote] = useState(null);
@@ -143,39 +145,77 @@ function NotesPage() {
       title="Notes"
       subtitle="Capture thoughts, project documentation, and task scratchpads"
       actions={
-        <Button
-          variant="primary"
-          onClick={() => {
-            setFormError("");
-            setIsCreateOpen(true);
-          }}
-        >
-          <Plus size={16} aria-hidden="true" />
-          Create Note
-        </Button>
+        <div className="notes-page__header-actions">
+          <Button
+            variant={isAISearchOpen ? "secondary" : "default"}
+            onClick={() => setIsAISearchOpen((prev) => !prev)}
+            className="notes-page__ai-search-toggle"
+            aria-expanded={isAISearchOpen}
+          >
+            <Sparkles size={16} aria-hidden="true" />
+            {isAISearchOpen ? "Close AI Search" : "Ask AI Across Notes"}
+          </Button>
+          <Button
+            variant="primary"
+            onClick={() => {
+              setFormError("");
+              setIsCreateOpen(true);
+            }}
+          >
+            <Plus size={16} aria-hidden="true" />
+            Create Note
+          </Button>
+        </div>
       }
     >
       <div className="notes-page__controls">
-        <div className="notes-page__search-box">
-          <Search size={16} aria-hidden="true" />
-          <input
-            type="search"
-            placeholder="Search notes by title or content..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            aria-label="Search notes"
-          />
-          {search && (
-            <button
-              type="button"
-              className="notes-page__search-clear"
-              onClick={() => setSearch("")}
-              aria-label="Clear search"
-            >
-              <X size={14} aria-hidden="true" />
-            </button>
-          )}
+        <div className="notes-page__search-row">
+          <div className="notes-page__search-box">
+            <Search size={16} aria-hidden="true" />
+            <input
+              type="search"
+              placeholder="Search notes by title or content..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              aria-label="Search notes"
+            />
+            {search && (
+              <button
+                type="button"
+                className="notes-page__search-clear"
+                onClick={() => setSearch("")}
+                aria-label="Clear search"
+              >
+                <X size={14} aria-hidden="true" />
+              </button>
+            )}
+          </div>
+
+          <Button
+            variant={isAISearchOpen ? "secondary" : "default"}
+            className="notes-page__quick-ai-btn"
+            onClick={() => setIsAISearchOpen((prev) => !prev)}
+            aria-expanded={isAISearchOpen}
+          >
+            <Sparkles size={15} aria-hidden="true" />
+            <span>{isAISearchOpen ? "Close AI Search" : "Ask AI Across Notes"}</span>
+          </Button>
         </div>
+
+        {isAISearchOpen && (
+          <NoteAISearch
+            open={isAISearchOpen}
+            onClose={() => setIsAISearchOpen(false)}
+            onSelectNote={async (noteId) => {
+              try {
+                const note = await noteService.get(noteId);
+                setViewingNote(note);
+              } catch {
+                // If modal fetch fails, standard router fallback occurs
+              }
+            }}
+          />
+        )}
 
         <div className="notes-page__filters">
           <div className="notes-page__filter-group">

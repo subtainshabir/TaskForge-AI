@@ -17,6 +17,8 @@ from app.ai.note_improvement.schemas import NoteImprovementResponse
 from app.ai.note_improvement.service import improve_note_ai
 from app.ai.note_qa.schemas import NoteQARequest, NoteQAResponse
 from app.ai.note_qa.service import answer_note_question_ai
+from app.ai.note_search.schemas import NoteAISearchRequest, NoteAISearchResponse
+from app.ai.note_search.service import search_notes_ai
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.task import Task
@@ -70,6 +72,26 @@ def list_notes_endpoint(
         search=s_query,
         sort_by=s_by,
         order=s_order,
+    )
+
+
+@router.post("/ai/search", response_model=NoteAISearchResponse)
+def search_notes_ai_endpoint(
+    payload: NoteAISearchRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    ai_provider: AIProvider = Depends(get_ai_provider),
+) -> NoteAISearchResponse:
+    """
+    Search across the authenticated user's notes using deterministic DB search
+    followed by AI synthesis and source citation.
+    Does NOT modify any notes.
+    """
+    return search_notes_ai(
+        db=db,
+        user_id=current_user.id,
+        question=payload.question,
+        provider=ai_provider,
     )
 
 
